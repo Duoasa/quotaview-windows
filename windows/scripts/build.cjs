@@ -1,0 +1,12 @@
+const fs = require('node:fs');
+const path = require('node:path');
+const {transformSync} = require('esbuild');
+const root = path.resolve(__dirname, '..');
+const output = path.join(root, 'dist');
+fs.mkdirSync(path.join(output, 'renderer/effects'), {recursive: true});
+fs.cpSync(path.join(root, 'assets'), path.join(output, 'assets'), {recursive: true});
+for (const name of ['index.html', 'app.css']) fs.copyFileSync(path.join(root, 'renderer', name), path.join(output, 'renderer', name));
+const source = fs.readFileSync(path.join(root, 'renderer/app.js'), 'utf8');
+fs.writeFileSync(path.join(output, 'renderer/app.js'), transformSync(source, {target: 'chrome145', minify: false, legalComments: 'inline'}).code);
+for (const name of ['assets.js', 'model.js', 'runtime.js', 'effects.css']) fs.copyFileSync(path.join(root, '../ElectronEffects/src', name), path.join(output, 'renderer/effects', name));
+console.log('Built renderer, effects and assets from tracked project files.');
