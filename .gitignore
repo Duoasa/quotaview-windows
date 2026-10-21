@@ -13,3 +13,5 @@ Imports/*/join-kit/
 Imports/*/*.zip
 Imports/*/inventory.json
 Imports/*/asar-inventory.json
+windows/dist/
+windows/release/

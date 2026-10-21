@@ -1,0 +1,32 @@
+{
+  "name": "quotaview-windows",
+  "productName": "QuotaView Windows",
+  "version": "0.8.3-win.1.effects.2",
+  "description": "Windows Dynamic Island for local coding agents",
+  "main": "src/main.cjs",
+  "author": "Duoasa",
+  "license": "MIT",
+  "private": true,
+  "packageManager": "pnpm@11.25.0",
+  "engines": {"node": "24.19.0"},
+  "scripts": {
+    "build": "node scripts/build.cjs",
+    "build:helper": "node scripts/build-helper.cjs",
+    "test": "node --test ../ElectronEffects/tests/model.test.cjs tests/*.test.cjs",
+    "start": "pnpm run build && electron .",
+    "smoke": "electron . --smoke-test",
+    "package": "pnpm run build && pnpm run build:helper && electron-builder --win --x64 --dir --publish never",
+    "dist": "pnpm run build && pnpm run build:helper && electron-builder --win portable --x64 --publish never"
+  },
+  "dependencies": {"@iarna/toml": "2.2.5", "yaml": "2.9.1"},
+  "devDependencies": {"electron": "45.0.0", "electron-builder": "26.15.3", "esbuild": "0.28.2", "postject": "1.0.0-alpha.6", "prettier": "3.9.10"},
+  "build": {
+    "appId": "com.duoasa.quotaview.windows",
+    "asar": true,
+    "directories": {"output": "release"},
+    "files": ["src/**", "dist/renderer/**", "dist/assets/**", "package.json", "LICENSE", "THIRD_PARTY_NOTICES.md"],
+    "extraResources": [{"from": "dist/helper", "to": "helper"}],
+    "win": {"target": "portable", "signAndEditExecutable": false},
+    "artifactName": "QuotaView-Windows-${version}-${arch}.${ext}"
+  }
+}

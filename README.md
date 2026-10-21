@@ -6,13 +6,26 @@ QuotaView 的 Windows 灵动岛适配工程，不包含桌面小组件。当前�
 
 | 目录 | 内容 |
 | --- | --- |
-| `ElectronEffects/` | 当前 Electron 接入实现、构建适配器与测试，见 [说明](ElectronEffects/README.md) |
+| `windows/` | 当前可独立构建的 Electron 工程、锁文件、资源及 Hook 构建脚本，见 [构建说明](windows/README.md) |
+| `ElectronEffects/` | 共用特效源码与测试；旧版运行包适配器作为历史工具保留 |
 | `Prototypes/EffectsLab/` | 已验收的独立 OpenGL 特效开发台、shader 和测试 |
 | `Imports/dot-0.8.3-win.1/app-review/` | 原交付包提取的后端代码与前端编译产物，保留许可证；不等同完整 React 源码 |
 | `src/`、`tests/` | 早期独立 WPF 最小实现与测试 |
 | `docs/` | 移植范围与交付包审阅记录 |
 
-仓库不包含 Electron 二进制、原始交付压缩包、本机配置或运行日志。当前 Electron 构建依赖原交付目录 `Imports/dot-0.8.3-win.1/runtime/win-unpacked/`；仅克隆仓库尚不能独立重建 Electron 版本，完整前端源码与依赖锁文件仍待补齐。WPF 原型和独立特效开发台可按各自构建脚本编译。
+仓库包含构建所需代码、图片字体和依赖锁文件，不提交 Electron 二进制、原始交付压缩包、本机配置或运行日志。`windows/` 构建不依赖 `Imports/` 或旧运行包。前端基于现有 JavaScript 产物恢复并格式化，包含 React 运行库；不是 dot 未交付的原始 JSX/TSX 工程，来源和维护限制见 `windows/README.md`。
+
+Windows x64 安装 Node.js 24.19.0 与 pnpm 11.25.0 后：
+
+```powershell
+git clone https://github.com/Duoasa/quotaview-windows.git
+cd quotaview-windows/windows
+pnpm install --frozen-lockfile
+pnpm test
+pnpm run package
+```
+
+生成 `windows/release/win-unpacked/QuotaView Windows.exe`。开发运行使用 `pnpm start`，生成单文件便携包使用 `pnpm run dist`。首次安装和打包需要网络下载公开依赖；产物未签名。
 
 以下记录为早期 WPF 原型的说明，其功能边界不代表当前 Electron 版本。
 
