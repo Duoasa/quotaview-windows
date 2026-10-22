@@ -24,7 +24,7 @@ pnpm run size     # 实测大小和预算检查，保存 release/size-report.jso
 pnpm run smoke    # 开发 Electron 的隔离启动、桥接和 GPU 检查
 ```
 
-也可对打包 EXE 使用 `--smoke-test --smoke-report=<绝对路径>`。本轮不改变版本身份、不签名、不上传或自动安装。CI 使用 `--publish never` 并关闭证书自动发现，保存构建产物供检查。
+也可对打包 EXE 使用 `--smoke-test --smoke-report=<绝对路径>`。发布的 `0.8.3-win.1.effects.2` x64 预览版见[GitHub Pre-release](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2)；未签名，未自动安装，Windows 实机验收待完成。CI 使用 `--publish never` 并关闭证书自动发现，保存构建产物供检查。
 
 ## 代码组织与复用
 

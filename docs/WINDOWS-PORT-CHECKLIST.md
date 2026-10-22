@@ -45,6 +45,10 @@
 | app.asar | 15052940 | 14.4 MiB |
 | 原生辅助程序 | 20480 | 20 KiB |
 
+## 首个完整移植预览版
+
+`v0.8.3-win.1.effects.2` [Pre-release](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2) 使用 `main` 提交 `f2046a7718d3636b12d2453bbd88df3380a16c7d` 的 [Windows x64 CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39730000641) 产物；27 项测试全部通过、无跳过，打包启动报告确认 `win32 / x64 / packaged: true`。便携包 119120903 字节，安装包 119440757 字节；两者未签名。附件包含 `SHA256SUMS.txt` 与 `validation-report.json`。发布预览版不代表下列实机验收已完成。
+
 ## 实机验收待办
 
 - Windows 10 纯色回退、Windows 11 22H2+ Acrylic/Mica、关闭系统透明效果、高对比度。

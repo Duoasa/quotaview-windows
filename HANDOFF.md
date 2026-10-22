@@ -2,7 +2,7 @@
 
 当前主线：`windows/` Electron / React 工程，共享 `ElectronEffects/src/` 动效。根目录 WPF 以及旧运行包适配器属于历史参考，不参与当前安装包。
 
-本轮基于 `2d55dbb`，开发分支 `codex/windows-port-completion`。版本保持 `0.8.3-win.1.effects.2`；用户已授权提交、推送并合并到 main；提交与 CI 状态以 Git 和 GitHub 实时结果为准。未签名或发布。
+移植修改已通过 PR #1 合并到 `main`（`f2046a7`）。用户已授权 Windows x64 打包与 Pre-release；版本保持 `0.8.3-win.1.effects.2`。已发布[未签名预览版](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2)，两个 EXE 直接来自该提交的 [Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39730000641)，附 SHA-256 与验证报告。尚未发布稳定版；用户将寻找 Windows 电脑实测。
 
 已落实：移除重置演示与桌面 Widget 入口；磨砂/Mica 与不透明回退；Windows 设置深浅色和窗口按钮；三种 GPU 进度效果、球体及实时预览；模块拆分；任务/进度/更新判断修复；额度代理；小型 Framework 辅助程序；NSIS/便携打包及卸载集成清理；Windows CI 与体积预算。
 
