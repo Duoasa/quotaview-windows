@@ -180,7 +180,7 @@
       return p;
     }
     quantumUniforms(width, height) {
-      const p = new Float32Array(54),
+      const p = new Float32Array(55),
         c = this.color;
       p[0] = width;
       p[1] = height;
@@ -218,6 +218,11 @@
       p[26] = 1;
       p[27] = this.motion[7];
       p[28] = this.state === "completed" ? 1 : 0;
+      // Full-width activity field is distinct from a measured progress boundary.
+      p[54] =
+        !this.known && ["working", "waiting", "error"].includes(this.state)
+          ? 1
+          : 0;
       p.set([0, 1 / 3, 2 / 3, 1], 30);
       p.set([0.5, 2 / 3, 5 / 6, 1], 34);
       p.set([19 / 255, 16 / 255, 25 / 255, 1], 38);
@@ -266,6 +271,8 @@
             "waiting",
             "completed",
             "error",
+            "standby",
+            "unavailable",
           ].includes(this.state))
       );
     }

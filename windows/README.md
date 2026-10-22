@@ -1,3 +1,7 @@
+# 历史 Electron 构建说明
+
+当前主线已迁移至 [.NET + WebView2](../webview2/README.md)，请从仓库根目录运行 `./build.ps1`。以下内容保留作为旧 Electron 发行版维护参考。
+
 # Windows 构建与维护
 
 ## 环境与命令

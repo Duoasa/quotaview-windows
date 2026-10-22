@@ -11,7 +11,7 @@ fs.cpSync(path.join(root, "assets"), path.join(output, "assets"), {
 fs.cpSync(path.join(root, "shared"), path.join(output, "renderer/shared"), {
   recursive: true,
 });
-for (const name of ["index.html", "app.css"])
+for (const name of ["index.html", "app.css", "native-ui.css"])
   fs.copyFileSync(
     path.join(root, "renderer", name),
     path.join(output, "renderer", name),

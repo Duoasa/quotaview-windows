@@ -75,7 +75,6 @@
     programs = {
       orb: program(assets.orbShader),
       quantum: program(assets.quantumShader),
-      progress: program(assets.progressShader),
       border: program(assets.borderShader),
     };
     surface.addEventListener("webglcontextlost", (event) => {
@@ -141,7 +140,9 @@
       entry.key = key;
       entry.model = modelFor(key, state, progress(value.task));
       entry.props = value;
-      entry.model.setReduced(!!value.reduceMotion || media.matches);
+      // An explicit application preference takes priority. Windows can report
+      // reduced motion globally even when the user wants these live status effects.
+      entry.model.setReduced(value.reduceMotion ?? media.matches);
       entry.model.setState(state);
       entry.model.setProgress(progress(value.task));
       if (state === "completed" && (!entry.visible || document.hidden))
@@ -231,7 +232,7 @@
       width = 1;
     for (const item of visible) {
       const { e, rect } = item;
-      e.model.setReduced(!!e.props.reduceMotion || media.matches);
+      e.model.setReduced(e.props.reduceMotion ?? media.matches);
       if (!advanced.has(e.model)) {
         e.model.advance(dt);
         advanced.add(e.model);
@@ -261,10 +262,9 @@
       if (e.kind === "orb")
         draw(programs.orb, e.model.orbUniforms(tile.w, tile.h), tile);
       else {
-        const effect = e.props.effect || "quantum";
         draw(
-          effect === "quantum" ? programs.quantum : programs.progress,
-          e.model.progressUniforms(rect.width, rect.height, effect),
+          programs.quantum,
+          e.model.quantumUniforms(rect.width, rect.height),
           tile,
         );
         if (e.model.glow > 0) {
@@ -378,8 +378,8 @@
       return renderOrb(testReact, props);
     }
     let selectedEffect = "quantum";
-    const show = async (task) => {
-      const props = { task, status: displayState(task), reduceMotion: true };
+    const show = async (task, reduced = true) => {
+      const props = { task, status: displayState(task), reduceMotion: reduced };
       testRoot.render(
         testReact.createElement(
           "div",
@@ -444,17 +444,29 @@
         center[0] + center[1] + center[2] < 6,
         "Reduced-motion completion did not fade the particle field",
       );
-      for (const effect of ["smoke", "wave"]) {
-        selectedEffect = effect;
-        await show(task);
-        const full = energy(quantum);
-        check(full > 1000, effect + " pixels are empty");
-        await show({ ...task, progress: { completed: 0, total: 5 } });
-        check(
-          Math.abs(energy(quantum) - full) > 1000,
-          effect + " progress did not change GPU output",
-        );
-      }
+      await show(task, false);
+      const framesBefore = frames;
+      const orbBefore = orb.toDataURL(),
+        quantumBefore = quantum.toDataURL();
+      await wait(600);
+      const motion = {
+        frames: frames - framesBefore,
+        orb: orbBefore !== orb.toDataURL(),
+        quantum: quantumBefore !== quantum.toDataURL(),
+        systemReducedMotion: media.matches,
+        hidden: document.hidden,
+      };
+      check(
+        motion.frames >= 3 && motion.orb && motion.quantum,
+        "Live animation is not advancing: " + JSON.stringify(motion),
+      );
+      await show({ ...task, progress: null }, false);
+      const indeterminateBefore = quantum.toDataURL();
+      await wait(350);
+      check(
+        energy(quantum) > 1000 && quantum.toDataURL() !== indeterminateBefore,
+        "Unknown progress lost its live activity field",
+      );
       check(gl.getError() === gl.NO_ERROR, "WebGL pipeline error");
       check(
         document.querySelector(".qv-gpu-orb canvas"),
@@ -471,8 +483,8 @@
         contexts: 1,
         orbPixels: true,
         quantumProgress: true,
-        smokeProgress: true,
-        waveProgress: true,
+        motion,
+        indeterminateMotion: true,
         compacting: true,
         completed: true,
         reactOrbMounted: true,
@@ -523,6 +535,15 @@
       models: models.size,
       contexts: gl ? 1 : 0,
       error: failure,
+      hidden: document.hidden,
+      systemReducedMotion: media.matches,
+      active: [...entries].map((e) => ({
+        kind: e.kind,
+        visible: e.visible,
+        state: e.model?.state,
+        reduced: e.model?.reduced,
+        animating: e.model?.needsAnimation,
+      })),
     }),
   };
 })();

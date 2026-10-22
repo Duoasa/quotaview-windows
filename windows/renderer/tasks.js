@@ -70,24 +70,26 @@ function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
     {
       ref: c,
       type: "button",
-      className: `task-card status-${f} effect-${n.settings.effect} ${e ? "selected" : ""} ${l ? "nested" : ""} ${g.known ? "known-progress" : "unknown-progress"}`,
+      className: `task-card status-${f} effect-quantum ${e ? "selected" : ""} ${l ? "nested" : ""} ${g.known ? "known-progress" : "unknown-progress"}`,
       onClick: a,
       "aria-expanded": e,
       style: { "--progress": `${g.percent ?? 0}%` },
     },
-    React.createElement(window.QVEffects.ProgressEffect, {
-      react: React,
-      task: t,
-      effect: n.settings.effect,
-      reduceMotion: !!n.settings.reduceMotion,
-    }),
+    !["thinking", "compacting", "unknown", "interrupted"].includes(f) &&
+      React.createElement(window.QVEffects.ProgressEffect, {
+        react: React,
+        task: t,
+        effect: "quantum",
+        reduceMotion: !!n.settings.reduceMotion,
+      }),
     React.createElement(
       "span",
       { className: "task-card-content" },
       React.createElement(
         "span",
         { className: "task-main" },
-        React.createElement(StatusOrb, { status: f, task: t }),
+        !["working", "waiting"].includes(f) &&
+          React.createElement(StatusOrb, { status: f, task: t }),
         React.createElement(
           "span",
           { className: "task-copy" },
@@ -795,6 +797,10 @@ function IslandView() {
     f = React.useRef(null),
     [p, w] = React.useState(!!t.ui?.pinned),
     N = React.useRef(null),
+    hoverOpen = React.useRef(null),
+    pointerInside = React.useRef(false),
+    suppressHover = React.useRef(false),
+    interactionState = React.useRef(null),
     D = React.useRef(""),
     v = React.useRef(t.ui?.expanded),
     d = t.tasks,
@@ -810,6 +816,7 @@ function IslandView() {
     ),
     T = h.filter((O) => O.status === "waiting" || O.approval),
     M = h[0];
+  interactionState.current = { pinned: p, pending: T.length };
   (React.useEffect(() => {
     t.ui?.expanded !== void 0 &&
       t.ui.expanded !== v.current &&
@@ -822,6 +829,12 @@ function IslandView() {
       r((V) => (V === O ? null : O));
     },
     C = (O) => {
+      clearTimeout(hoverOpen.current);
+      clearTimeout(N.current);
+      if (!O) {
+        suppressHover.current = pointerInside.current;
+        w(false);
+      }
       (i(O), a("resize", { expanded: O }), O || (o("tasks"), r(null)));
     };
   (React.useLayoutEffect(() => {
@@ -834,7 +847,7 @@ function IslandView() {
                   Math.min(
                     f.current.querySelector(".island-body")?.scrollHeight || 0,
                     650,
-                  ) + 108,
+                  ) + 128,
                 ),
               )
             : 56,
@@ -845,18 +858,25 @@ function IslandView() {
       V = new ResizeObserver(O);
     return (V.observe(f.current), O(), () => V.disconnect());
   }, [n, u, c, t.settings.islandWidth, t.tasks, t.quotas, t.usage]),
-    React.useEffect(() => () => clearTimeout(N.current), []));
+    React.useEffect(
+      () => () => {
+        clearTimeout(N.current);
+        clearTimeout(hoverOpen.current);
+      },
+      [],
+    ));
   function nt() {
-    !p &&
-      !T.length &&
-      n &&
-      u === "tasks" &&
-      t.settings.autoExpand &&
-      t.settings.compactDelaySeconds > 0 &&
-      (N.current = setTimeout(
-        () => C(!1),
-        Math.max(3, t.settings.compactDelaySeconds) * 1e3,
-      ));
+    clearTimeout(N.current);
+    n &&
+      (N.current = setTimeout(() => {
+        if (
+          !pointerInside.current &&
+          !interactionState.current.pinned &&
+          !interactionState.current.pending &&
+          !f.current?.querySelector("input:focus,textarea:focus,select:focus")
+        )
+          C(false);
+      }, 450));
   }
   let A = T.length
     ? e(`${T.length} \u5F85\u786E\u8BA4`, `${T.length} need confirmation`)
@@ -873,11 +893,20 @@ function IslandView() {
     {
       className: `island-window ${n ? "expanded" : "collapsed"}`,
       onMouseEnter: () => {
-        (clearTimeout(N.current),
-          a("resize", { expanded: n, pinned: p, hovered: !0 }));
+        pointerInside.current = true;
+        (clearTimeout(N.current), a("resize", { expanded: n, hovered: !0 }));
+        if (!n && !suppressHover.current) {
+          clearTimeout(hoverOpen.current);
+          hoverOpen.current = setTimeout(() => {
+            if (pointerInside.current && !suppressHover.current) C(true);
+          }, 150);
+        }
       },
       onMouseLeave: () => {
-        (a("resize", { expanded: n, pinned: p, hovered: !1 }), nt());
+        pointerInside.current = false;
+        suppressHover.current = false;
+        clearTimeout(hoverOpen.current);
+        (a("resize", { expanded: n, hovered: !1 }), nt());
       },
       onKeyDown: (O) => {
         O.key === "Escape" &&
@@ -1012,7 +1041,17 @@ function IslandView() {
                         `${h.length} sessions`,
                       )
                     : Object.values(t.quotas || {}).some((q) => q?.updatedAt)
-                      ? e("\u5DF2\u8BB0\u5F55\u5FEB\u7167", "Recorded snapshot")
+                      ? e("更新于 ", "Updated ") +
+                        new Date(
+                          Math.max(
+                            ...Object.values(t.quotas || {}).map(
+                              (q) => q?.updatedAt || 0,
+                            ),
+                          ),
+                        ).toLocaleTimeString(undefined, {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
                       : e("\u672C\u5730\u6570\u636E", "Local data"),
                 ),
                 React.createElement(

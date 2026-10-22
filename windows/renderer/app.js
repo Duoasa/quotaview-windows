@@ -43,6 +43,7 @@ var viewName =
     }
   };
 function App() {
+  const fixtureMode = React.useRef(false);
   let [t, e] = React.useState(() => normalizeSnapshot(null)),
     [a, l] = React.useState({}),
     [n, i] = React.useState(""),
@@ -61,6 +62,10 @@ function App() {
     p = React.useCallback((d, h) => (f.startsWith("zh") ? d : h), [f]),
     w = React.useCallback(
       async (d, h, x = {}) => {
+        if (fixtureMode.current && d === "updateSettings") {
+          e(current => normalizeSnapshot({...current,settings:{...current.settings,...h}}));
+          return {ok:true};
+        }
         try {
           if (typeof window.quotaView?.[d] != "function")
             throw new Error(
@@ -101,6 +106,11 @@ function App() {
     ),
     N = React.useCallback((d, h) => w("updateSettings", { [d]: h }), [w]);
   React.useEffect(() => trackWindowRegion(viewName), []);
+  React.useEffect(() => {
+    if (new URLSearchParams(location.search).get("effectsSmoke") !== "1") return;
+    window.QVUITest = { setSnapshot(value) { fixtureMode.current = true; e(normalizeSnapshot(value)); } };
+    return () => { delete window.QVUITest; };
+  }, []);
   (React.useEffect(() => {
     let d = !0,
       h;
@@ -117,11 +127,11 @@ function App() {
       window.quotaView
         .snapshot()
         .then((x) => {
-          d && e(normalizeSnapshot(x));
+          d && !fixtureMode.current && e(normalizeSnapshot(x));
         })
         .catch((x) => i(String(x.message || x))),
       (h = window.quotaView.subscribe((x) => {
-        d && e(normalizeSnapshot(x));
+        d && !fixtureMode.current && e(normalizeSnapshot(x));
       })),
       () => {
         ((d = !1), typeof h == "function" && h());
@@ -176,7 +186,7 @@ function App() {
     React.createElement(
       "div",
       {
-        className: `app view-${viewName} theme-${v} material-${t.settings.material} ${(viewName === "capsule" ? t.platform?.capsuleBackdrop : t.platform?.nativeBackdrop) ? "native-backdrop" : "fallback-backdrop"} ${t.platform?.settingsBackdrop ? "settings-backdrop" : ""} ${t.settings.reduceMotion ? "reduce-motion" : ""} ${g ? "window-hidden" : ""} ${t.settings.privacy ? "privacy-on" : ""} ${t.settings.hoverTransparency ? "hover-transparency" : ""}`,
+        className: `app view-${viewName} theme-${v} material-${t.settings.material} ${(viewName === "capsule" ? t.platform?.capsuleBackdrop : t.platform?.nativeBackdrop) ? "native-backdrop" : "fallback-backdrop"} ${t.platform?.settingsBackdrop ? "settings-backdrop" : ""} ${t.settings.reduceMotion ? "reduce-motion" : ""} ${g ? "window-hidden" : ""} ${t.settings.privacy ? "privacy-on" : ""}`,
       },
       viewName === "settings"
         ? React.createElement(SettingsView, null)

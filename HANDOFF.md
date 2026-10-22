@@ -1,13 +1,9 @@
-# QuotaView Windows 开发交接
+# 当前主线：WebView2 + .NET
 
-当前主线：`windows/` Electron / React 工程，共享 `ElectronEffects/src/` 动效。根目录 WPF 以及旧运行包适配器属于历史参考，不参与当前安装包。
+当前工程入口为根目录 `build.ps1`，实现位于 `webview2/`；`windows/` 保留共享业务模块与 React 界面。运行时不依赖 Electron、Node.js 或 .NET Framework。
 
-移植修改已通过 PR #1 合并到 `main`（`f2046a7`）。用户已授权 Windows x64 打包与 Pre-release；版本保持 `0.8.3-win.1.effects.2`。已发布[未签名预览版](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2)，两个 EXE 直接来自该提交的 [Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39730000641)，附 SHA-256 与验证报告。尚未发布稳定版；用户将寻找 Windows 电脑实测。
+本轮完成原生窗口、数据和 Hook 桥接，设置与 mac 对齐，仅保留 AI 球及量子噪点；增加悬停展开，用量卡片组合布局和不可交互的充值卡，修复设置窗口 DPI、按钮尺寸和小屏定位。
 
-已落实：移除重置演示与桌面 Widget 入口；磨砂/Mica 与不透明回退；Windows 设置深浅色和窗口按钮；三种 GPU 进度效果、球体及实时预览；模块拆分；任务/进度/更新判断修复；额度代理；小型 Framework 辅助程序；NSIS/便携打包及卸载集成清理；Windows CI 与体积预算。
+复查入口：`./build.ps1 -Action test`；交付入口：`./build.ps1 -Action publish`。见 [主线说明](webview2/README.md)。生成物和报告不提交 Git，旧 Electron 发行包不代表本次主线。
 
-本轮在 macOS 完成本地检查，推送后 [Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39729392168) 已通过全部 27 项测试、打包与隔离启动检查。辅助程序为 20 KiB，NSIS 安装包约 113.9 MiB，便携包约 113.6 MiB，展开应用约 382.4 MiB。用户暂时没有 Windows 实机，安装交互、DWM 材质、多 DPI 和真实 Agent 验收尚未完成；下一步执行真实环境检查表。不要把历史 NVIDIA 开发台测试当作新应用已通过的证据。
-
-- [构建与维护](windows/README.md)
-- [验证与待办清单](docs/WINDOWS-PORT-CHECKLIST.md)
-- [历史交接原文](docs/archive/HANDOFF-before-port-completion.md)
+继续修改时应使用现有真实数据读取链路。不要引入模拟额度，不要恢复充值二级页面或多特效选择；不要把 Codex Desktop 只读审批同步标成可以批准。

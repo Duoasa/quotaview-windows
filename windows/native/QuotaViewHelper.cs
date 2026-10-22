@@ -12,18 +12,41 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+#if NET
+#nullable disable
+using System.Text.Json;
+#else
 using System.Web.Script.Serialization;
+#endif
 
 static class QuotaViewHelper {
     const int WireLimit = 1048576;
+#if !NET
     static readonly JavaScriptSerializer Json = new JavaScriptSerializer { MaxJsonLength = 8388608, RecursionLimit = 64 };
+#endif
     static Dictionary<string, object> Obj(object o) { return o as Dictionary<string, object>; }
     static object Get(Dictionary<string, object> d, string k) { object v; return d != null && d.TryGetValue(k, out v) ? v : null; }
     static string Str(Dictionary<string, object> d, string k) { return Get(d, k) as string; }
     static bool Is(Dictionary<string, object> d, string k, bool v) { return Get(d, k) is bool && (bool)Get(d, k) == v; }
     static int Number(Dictionary<string, object> d, string k, int fallback) { var n = Get(d, k); return n is int ? (int)n : fallback; }
+#if NET
+    static string Encode(object o) { return JsonSerializer.Serialize(o); }
+    static object Value(JsonElement e) {
+        switch(e.ValueKind) {
+        case JsonValueKind.Object: var d = new Dictionary<string, object>(); foreach(var p in e.EnumerateObject()) d[p.Name]=Value(p.Value); return d;
+        case JsonValueKind.Array: var a = new List<object>(); foreach(var item in e.EnumerateArray()) a.Add(Value(item)); return a.ToArray();
+        case JsonValueKind.String: return e.GetString();
+        case JsonValueKind.Number: if(e.TryGetInt32(out var i)) return i; return e.GetDouble();
+        case JsonValueKind.True: return true;
+        case JsonValueKind.False: return false;
+        default: return null;
+        }
+    }
+    static Dictionary<string, object> Decode(string s) { if(s.Length>8388608) throw new IOException(); using(var doc=JsonDocument.Parse(s,new JsonDocumentOptions{MaxDepth=64})) return Obj(Value(doc.RootElement)); }
+#else
     static string Encode(object o) { return Json.Serialize(o); }
     static Dictionary<string, object> Decode(string s) { return Obj(Json.DeserializeObject(s)); }
+#endif
     static string Clip(string s, int bytes) {
         if (s == null) return null;
         var data = Encoding.UTF8.GetBytes(s); if (data.Length <= bytes) return s;
@@ -155,10 +178,13 @@ static class QuotaViewHelper {
         SetThreadDpiAwarenessContext(new IntPtr(-4));
         while(true) { var window=GetForegroundWindow(); Rect rect; uint pid; GetWindowThreadProcessId(window,out pid); if(GetWindowRect(window,out rect)) Console.WriteLine(Encode(new {x=rect.Left,y=rect.Top,width=rect.Right-rect.Left,height=rect.Bottom-rect.Top,pid=pid})); Thread.Sleep(1500); }
     }
-    static int Main(string[] args) {
+#if !NET
+    static int Main(string[] args) { return Run(args); }
+#endif
+    public static int Run(string[] args) {
         Console.OutputEncoding = new UTF8Encoding(false);
         if(Array.IndexOf(args,"--helper-smoke-test")>=0) {
-            try { var p=Payload(Decode("{\"hook_event_name\":\"Stop\",\"session_id\":\"fixture\",\"prompt\":\"secret\"}"),"codex"); if(p.Count!=2 || Encode(p).Contains("secret") || Decision(null)!="" || Clip("你好",4)!="你") return 1; Console.WriteLine("{\"ok\":true,\"runtime\":\"net48\"}"); return 0; } catch { return 1; }
+            try { var p=Payload(Decode("{\"hook_event_name\":\"Stop\",\"session_id\":\"fixture\",\"prompt\":\"secret\"}"),"codex"); if(p.Count!=2 || Encode(p).Contains("secret") || Decision(null)!="" || Clip("你好",4)!="你") return 1; Console.WriteLine(Encode(new {ok=true,runtime=Environment.Version.ToString()})); return 0; } catch { return 1; }
         }
         try { if(Array.IndexOf(args,"--foreground-monitor")>=0) Foreground(); else Hook(args,Array.IndexOf(args,"--quotaview-codex-hook")>=0); } catch { /* Preserve agent defaults on every transport/configuration failure. */ }
         return 0;

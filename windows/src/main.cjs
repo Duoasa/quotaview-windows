@@ -286,20 +286,11 @@ function runApplication() {
   }
   function setExpanded(value, reason) {
     clearTimeout(hideTimer);
+    const changed = expanded !== !!value;
     expanded = !!value;
     if (!expanded) pinned = false;
     expansionReason = reason || null;
-    reposition(expanded ? 570 : 66);
-    if (!expanded && settings.hiddenDelaySeconds > 0)
-      hideTimer = setTimeout(() => {
-        const live = snapshot().tasks.some(
-          (t) =>
-            !["completed", "failed", "interrupted", "unknown"].includes(
-              t.status,
-            ),
-        );
-        if (!expanded && !live) island?.hide();
-      }, settings.hiddenDelaySeconds * 1000);
+    if (changed) reposition(expanded ? 570 : 66);
     publish();
   }
   function snapshot() {
@@ -403,12 +394,12 @@ function runApplication() {
       }
       if (previous !== t.status && settings.autoExpand) {
         if (
-          (t.status === "waiting" && settings.autoExpandOnApproval) ||
+          (t.status === "waiting") ||
           (previous &&
             terminal &&
             t.verified !== false &&
             settings.autoExpandOnComplete) ||
-          (!previous && !terminal && settings.autoExpandOnStart)
+          (!previous && !terminal)
         ) {
           setExpanded(true, t.status);
           if (collapseTimer) clearTimeout(collapseTimer);
@@ -420,7 +411,7 @@ function runApplication() {
               if (
                 !pinned &&
                 !hovered &&
-                !snapshot().tasks.some((task) => task.status === "waiting")
+                !snapshot().tasks.some((task) => task.status === "waiting" || task.approval)
               )
                 setExpanded(false);
             }, delay * 1000);
@@ -1038,6 +1029,7 @@ function runApplication() {
         if (!bridge.hasSettings || bridge.taskCount !== 0)
           throw Error("Smoke preload bridge failed");
         for (const win of [island, capsule, preferences]) {
+          win.showInactive();
           const mounted = await win.webContents.executeJavaScript(
             "new Promise(resolve=>{let n=0;const check=()=>{if(document.querySelector('.fatal-error'))resolve(false);else if(document.getElementById('root')?.childElementCount)resolve(true);else if(++n>=30)resolve(false);else setTimeout(check,100);};check();})",
           );
@@ -1047,6 +1039,7 @@ function runApplication() {
         const effects = await island.webContents.executeJavaScript(
           "window.QVEffects.selfTest()",
         );
+        const ui = await require("../tests/renderer-qa.cjs")({island, preferences, folder:smokeReport ? path.dirname(smokeReport) : null});
         const topAligned = island.getBounds().y === display().bounds.y;
         if (!topAligned) throw Error("Island is not aligned to screen top");
         const evidence = {
@@ -1055,6 +1048,7 @@ function runApplication() {
             win.getBackgroundColor(),
           ),
           effects,
+          ui,
           windowRegions: [island, capsule].map((win) => !!win.qvRegion),
           backdrops: [island, capsule, preferences].map(
             (win) => win.qvMaterial || "none",

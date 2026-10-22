@@ -16,6 +16,7 @@ import {
 } from "./common.js";
 import { QuotaCapsule, UsageView } from "./usage.js";
 import { TaskCard } from "./tasks.js";
+const h = React.createElement;
 var settingPages = [
   ["general", "settings", "\u901A\u7528", "General", "#4e9ef8"],
   ["island", "island", "\u7075\u52A8\u5C9B", "Island", "#ba6bf2"],
@@ -45,215 +46,103 @@ function SettingToggle({
   );
 }
 function GeneralSettings() {
-  let { snapshot: t, t: e, setSetting: a, invoke: l } = useApp(),
-    n = t.settings,
-    [i, u] = React.useState(!1),
-    o = t.displays.map((r, g) => [
-      String(r.id),
-      r.label || r.name || e(`\u663E\u793A\u5668 ${g + 1}`, `Display ${g + 1}`),
+  const { snapshot, t, setSetting, invoke } = useApp();
+  const [confirmQuit, setConfirmQuit] = React.useState(false);
+  const settings = snapshot.settings;
+  const displays = [
+    ["primary", t("主显示器", "Primary display")],
+    ...snapshot.displays.map((display, index) => [
+      String(display.id),
+      display.label ||
+        display.name ||
+        t("显示器 " + (index + 1), "Display " + (index + 1)),
     ]),
-    c = [
-      [
-        "active",
-        e("\u8DDF\u968F\u6D3B\u52A8\u7A97\u53E3", "Follow active window"),
-      ],
-      ["cursor", e("\u8DDF\u968F\u9F20\u6807\u6307\u9488", "Follow pointer")],
-      ["primary", e("\u4E3B\u663E\u793A\u5668", "Primary display")],
-      ...o,
-    ];
-  return (
-    c.some(([r]) => r === String(n.display)) ||
-      c.push([
-        String(n.display),
-        e(
-          "\u6240\u9009\u663E\u793A\u5668\u672A\u8FDE\u63A5",
-          "Selected display is disconnected",
-        ),
-      ]),
-    React.createElement(
-      React.Fragment,
-      null,
-      React.createElement(
-        SettingGroup,
-        { title: e("\u8BED\u8A00", "Language") },
-        React.createElement(
-          SettingRow,
-          {
-            title: e("\u5E94\u7528\u8BED\u8A00", "App language"),
-            description: e(
-              "\u7ACB\u5373\u5E94\u7528\u4E8E\u5168\u90E8\u7A97\u53E3\u3002",
-              "Applies to every window immediately.",
-            ),
-            icon: "globe",
-          },
-          React.createElement(Select, {
-            label: e("\u5E94\u7528\u8BED\u8A00", "App language"),
-            value: n.language,
-            onChange: (r) => a("language", r),
-            options: [
-              ["system", e("\u8DDF\u968F\u7CFB\u7EDF", "System")],
-              ["zh", "\u7B80\u4F53\u4E2D\u6587"],
-              ["en", "English"],
-            ],
-          }),
-        ),
+  ];
+  if (
+    settings.display !== "active" &&
+    !displays.some(([id]) => id === settings.display)
+  )
+    displays.push([
+      settings.display,
+      t("所选显示器未连接", "Selected display is disconnected"),
+    ]);
+  return h(
+    React.Fragment,
+    null,
+    h(
+      SettingGroup,
+      { title: t("语言", "Language") },
+      h(
+        SettingRow,
+        { title: t("应用语言", "App language"), icon: "globe" },
+        h(Select, {
+          label: t("应用语言", "App language"),
+          value: settings.language,
+          onChange: (value) => setSetting("language", value),
+          options: [
+            ["system", t("跟随系统", "System")],
+            ["zh", "简体中文"],
+            ["en", "English"],
+          ],
+        }),
       ),
-      React.createElement(
-        SettingGroup,
+    ),
+    h(
+      SettingGroup,
+      { title: t("灵动岛显示位置", "Island display") },
+      h(
+        SettingRow,
         {
-          title: e(
-            "\u7075\u52A8\u5C9B\u663E\u793A\u4F4D\u7F6E",
-            "Island placement",
+          title: t("焦点屏幕跟随", "Follow focused display"),
+          description: t(
+            "跟随当前活动窗口所在的屏幕。",
+            "Follow the display containing the active window.",
           ),
-          note: e(
-            "\u6307\u5B9A\u7684\u663E\u793A\u5668\u65AD\u5F00\u65F6\u4E34\u65F6\u56DE\u5230\u4E3B\u5C4F\u5E55\uFF0C\u91CD\u65B0\u8FDE\u63A5\u540E\u6062\u590D\u3002",
-            "A disconnected display falls back to the primary display until it reconnects.",
-          ),
+          icon: "monitor",
         },
-        React.createElement(
-          SettingRow,
-          {
-            title: e("\u663E\u793A\u5668", "Display"),
-            description: e(
-              "\u6240\u6709\u4F4D\u7F6E\u8BA1\u7B97\u5747\u5728\u4F60\u7684 Windows \u7535\u8111\u4E0A\u5B8C\u6210\u3002",
-              "Placement is calculated locally on your Windows PC.",
-            ),
-            icon: "monitor",
-          },
-          React.createElement(Select, {
-            label: e("\u663E\u793A\u5668", "Display"),
-            value: String(n.display),
-            onChange: (r) => a("display", r),
-            options: c,
-          }),
-        ),
-        React.createElement(SettingToggle, {
-          name: "alwaysOnTop",
-          title: e("\u59CB\u7EC8\u7F6E\u9876", "Always on top"),
-          description: e(
-            "\u8BA9\u7075\u52A8\u5C9B\u4FDD\u6301\u5728\u666E\u901A\u5E94\u7528\u7A97\u53E3\u4E0A\u65B9\u3002",
-            "Keep the Island above ordinary application windows.",
-          ),
-          icon: "pin",
+        h(Toggle, {
+          label: t("焦点屏幕跟随", "Follow focused display"),
+          checked: settings.display === "active",
+          onChange: (value) =>
+            setSetting("display", value ? "active" : "primary"),
         }),
       ),
-      React.createElement(
-        SettingGroup,
+      settings.display !== "active" &&
+        h(
+          SettingRow,
+          {
+            title: t("固定屏幕", "Fixed display"),
+            description: t(
+              "断开时暂回主屏，重新连接后恢复。",
+              "Falls back to the primary display until reconnected.",
+            ),
+          },
+          h(Select, {
+            label: t("固定屏幕", "Fixed display"),
+            value: settings.display,
+            onChange: (value) => setSetting("display", value),
+            options: displays,
+          }),
+        ),
+    ),
+    h(
+      "button",
+      { className: "quit-row", onClick: () => setConfirmQuit(true) },
+      h(Icon, { name: "power" }),
+      t("退出 QuotaView", "Quit QuotaView"),
+    ),
+    confirmQuit &&
+      h(
+        ConfirmationDialog,
         {
-          title: e(
-            "\u542F\u52A8\u4E0E\u63D0\u9192",
-            "Startup and notifications",
-          ),
+          title: t("退出 QuotaView？", "Quit QuotaView?"),
+          confirmLabel: t("退出", "Quit"),
+          danger: true,
+          onClose: () => setConfirmQuit(false),
+          onConfirm: () => invoke("quit"),
         },
-        React.createElement(SettingToggle, {
-          name: "startAtLogin",
-          title: e("\u767B\u5F55\u65F6\u542F\u52A8", "Launch at sign-in"),
-          description: e(
-            "\u767B\u5F55 Windows \u540E\u81EA\u52A8\u542F\u52A8 QuotaView\u3002",
-            "Start QuotaView when you sign in to Windows.",
-          ),
-          icon: "power",
-        }),
-        React.createElement(SettingToggle, {
-          name: "notifications",
-          title: e("\u684C\u9762\u901A\u77E5", "Desktop notifications"),
-          description: e(
-            "\u901A\u77E5\u662F\u5426\u9001\u8FBE\u7531 Windows \u901A\u77E5\u8BBE\u7F6E\u51B3\u5B9A\u3002",
-            "Delivery follows your Windows notification settings.",
-          ),
-          icon: "bell",
-        }),
-        React.createElement(SettingToggle, {
-          name: "completionNotifications",
-          title: e("\u4EFB\u52A1\u5B8C\u6210\u63D0\u9192", "Completion alerts"),
-          description: e(
-            "\u53EA\u5728\u6536\u5230\u771F\u5B9E\u5B8C\u6210\u4E8B\u4EF6\u65F6\u63D0\u9192\u3002",
-            "Notify only after a real completion event.",
-          ),
-          disabled: !n.notifications,
-        }),
-        React.createElement(SettingToggle, {
-          name: "lowQuotaNotifications",
-          title: e("\u4F4E\u989D\u5EA6\u63D0\u9192", "Low quota alerts"),
-          description: e(
-            "\u4EC5\u6839\u636E\u6709\u6548\u989D\u5EA6\u5FEB\u7167\u63D0\u9192\u3002",
-            "Use only valid quota snapshots.",
-          ),
-          disabled: !n.notifications,
-        }),
+        t("Agent 任务会继续运行。", "Agent tasks will keep running."),
       ),
-      React.createElement(
-        SettingGroup,
-        { title: e("\u6570\u636E\u5237\u65B0", "Data refresh") },
-        React.createElement(
-          SettingRow,
-          {
-            title: e("\u5237\u65B0\u95F4\u9694", "Refresh interval"),
-            description: e(
-              "\u4EFB\u52A1\u4E8B\u4EF6\u5B9E\u65F6\u66F4\u65B0\uFF1B\u6B64\u95F4\u9694\u4EC5\u7528\u4E8E\u6570\u636E\u5237\u65B0\u3002",
-              "Task events update live; this interval controls data refresh.",
-            ),
-            icon: "refresh",
-          },
-          React.createElement(Select, {
-            label: e("\u5237\u65B0\u95F4\u9694", "Refresh interval"),
-            value: String(n.refreshSeconds),
-            onChange: (r) => a("refreshSeconds", Number(r)),
-            options: [30, 60, 120, 300].map((r) => [
-              String(r),
-              e(`${r} \u79D2`, `${r} seconds`),
-            ]),
-          }),
-        ),
-      ),
-      React.createElement(
-        SettingGroup,
-        { title: e("\u4EFB\u52A1\u8BB0\u5F55", "Task records") },
-        React.createElement(
-          SettingRow,
-          {
-            title: e(
-              "\u6062\u590D\u5DF2\u79FB\u9664\u7684\u5361\u7247",
-              "Restore dismissed cards",
-            ),
-            description: e(
-              "\u53EA\u6062\u590D\u672C\u5730\u5C9B\u5185\u663E\u793A\uFF0C\u4E0D\u4FEE\u6539\u6216\u91CD\u542F Agent \u4F1A\u8BDD\u3002",
-              "Restore the local Island view only, without modifying or restarting agent sessions.",
-            ),
-          },
-          React.createElement(
-            "button",
-            { onClick: () => l("restoreTasks") },
-            e("\u6062\u590D\u663E\u793A", "Restore cards"),
-          ),
-        ),
-      ),
-      React.createElement(
-        "button",
-        { className: "quit-row", onClick: () => u(!0) },
-        React.createElement(Icon, { name: "power" }),
-        e("\u9000\u51FA QuotaView", "Quit QuotaView"),
-      ),
-      i &&
-        React.createElement(
-          ConfirmationDialog,
-          {
-            title: e("\u9000\u51FA QuotaView\uFF1F", "Quit QuotaView?"),
-            confirmLabel: e("\u9000\u51FA", "Quit"),
-            danger: !0,
-            onClose: () => u(!1),
-            onConfirm: () => l("quit"),
-          },
-          React.createElement(
-            "p",
-            null,
-            e(
-              "Agent \u4EFB\u52A1\u4F1A\u7EE7\u7EED\u8FD0\u884C\uFF0C\u4F46 QuotaView \u5C06\u505C\u6B62\u76D1\u63A7\u548C\u901A\u77E5\u3002",
-              "Agent tasks will keep running, but QuotaView monitoring and notifications will stop.",
-            ),
-          ),
-        ),
-    )
   );
 }
 function IslandPreview() {
@@ -346,368 +235,185 @@ function IslandPreview() {
   );
 }
 function IslandSettings() {
-  let { t, snapshot: e, setSetting: a } = useApp(),
-    l = e.settings;
-  return React.createElement(
+  const { t, snapshot, setSetting } = useApp();
+  const settings = snapshot.settings;
+  return h(
     React.Fragment,
     null,
-    React.createElement(IslandPreview, null),
-    React.createElement(
+    h(IslandPreview),
+    h(
       SettingGroup,
-      {
-        title: t("\u5916\u89C2\u4E0E\u5E03\u5C40", "Appearance and layout"),
-        note: t(
-          "磨砂玻璃遵循 Windows 的透明效果设置，不可用时自动使用纯色背景。",
-          "Frosted glass follows Windows transparency settings and falls back to a solid surface when unavailable.",
-        ),
-      },
-      React.createElement(
-        "button",
-        {
-          className: `choice-row ${l.material === "glass" ? "selected" : ""}`,
-          onClick: () => a("material", "glass"),
-        },
-        React.createElement(
-          "span",
-          { className: "row-icon" },
-          React.createElement(Icon, { name: "sparkles" }),
-        ),
-        React.createElement(
-          "span",
-          null,
-          React.createElement("strong", null, t("磨砂玻璃", "Frosted glass")),
-          React.createElement(
-            "small",
-            null,
-            t(
-              "\u9876\u90E8\u9ED1\u8272\u6E10\u53D8\u3001\u900F\u660E\u5E95\u680F\u4E0E\u6DF1\u8272\u73BB\u7483\u5361\u7247\u3002",
-              "Black upper gradient, clear footer and dark glass cards.",
-            ),
+      { title: t("外观与布局", "Appearance and layout") },
+      ...[
+        [
+          "glass",
+          t("磨砂玻璃", "Frosted glass"),
+          t(
+            "通透底栏、自然高光与深色玻璃卡片。",
+            "Translucent footer, soft highlights and dark glass cards.",
           ),
-        ),
-        React.createElement(
-          "span",
-          { className: "choice-radio" },
-          l.material === "glass" &&
-            React.createElement(Icon, { name: "check", size: 12 }),
+          "sparkles",
+        ],
+        [
+          "solid",
+          t("经典纯色", "Classic solid"),
+          t(
+            "关闭背景、卡片与按钮的玻璃材质。",
+            "Opaque backgrounds, cards and controls.",
+          ),
+          "island",
+        ],
+      ].map(([value, title, description, icon]) =>
+        h(
+          "button",
+          {
+            key: value,
+            className:
+              "choice-row " + (settings.material === value ? "selected" : ""),
+            "aria-pressed": settings.material === value,
+            onClick: () => setSetting("material", value),
+          },
+          h("span", { className: "row-icon" }, h(Icon, { name: icon })),
+          h(
+            "span",
+            null,
+            h("strong", null, title),
+            h("small", null, description),
+          ),
+          h(
+            "span",
+            { className: "choice-radio" },
+            settings.material === value && h(Icon, { name: "check", size: 12 }),
+          ),
         ),
       ),
-      React.createElement(
-        "button",
-        {
-          className: `choice-row ${l.material === "solid" ? "selected" : ""}`,
-          onClick: () => a("material", "solid"),
-        },
-        React.createElement(
-          "span",
-          { className: "row-icon" },
-          React.createElement(Icon, { name: "island" }),
-        ),
-        React.createElement(
-          "span",
-          null,
-          React.createElement(
-            "strong",
-            null,
-            t("\u7ECF\u5178\u7EAF\u8272", "Classic solid"),
-          ),
-          React.createElement(
-            "small",
-            null,
-            t(
-              "\u5173\u95ED\u5C9B\u4F53\u3001\u5361\u7247\u4E0E\u6309\u94AE\u7684\u534A\u900F\u660E\u6750\u8D28\u3002",
-              "Opaque surfaces for the Island, cards and controls.",
-            ),
-          ),
-        ),
-        React.createElement(
-          "span",
-          { className: "choice-radio" },
-          l.material === "solid" &&
-            React.createElement(Icon, { name: "check", size: 12 }),
-        ),
-      ),
-      l.material === "glass" &&
-        React.createElement(
+      settings.material === "glass" &&
+        h(
           React.Fragment,
           null,
-          React.createElement(
+          h(
             SettingRow,
             {
-              title: t("\u73BB\u7483\u5916\u89C2", "Glass appearance"),
+              title: t("玻璃外观", "Glass appearance"),
               description: t(
-                "\u7EDF\u4E00\u63A7\u5236\u5E95\u90E8\u73BB\u7483\u3001\u6309\u94AE\u4E0E\u7528\u91CF\u80F6\u56CA\u3002",
-                "Unify the lower glass, controls and usage capsule.",
+                "底部玻璃、按钮和用量胶囊统一切换。",
+                "Applies to the lower glass, controls and capsule.",
               ),
             },
-            React.createElement(SegmentedControl, {
-              value: l.theme,
-              onChange: (n) => a("theme", n),
-              label: t("\u73BB\u7483\u5916\u89C2", "Glass appearance"),
+            h(SegmentedControl, {
+              value: settings.theme,
+              onChange: (value) => setSetting("theme", value),
+              label: t("玻璃外观", "Glass appearance"),
               options: [
-                ["light", t("\u6D45\u8272", "Light")],
-                ["dark", t("\u6DF1\u8272", "Dark")],
-                ["system", t("\u81EA\u52A8", "Auto")],
+                ["light", t("浅色", "Light")],
+                ["dark", t("深色", "Dark")],
+                ["system", t("自动", "Auto")],
               ],
             }),
           ),
-          React.createElement(
+          h(
             "div",
             { className: "slider-setting" },
-            React.createElement(
-              "div",
-              null,
-              React.createElement(
-                "label",
-                { htmlFor: "glass-ratio" },
-                t("\u9ED1\u8272\u8986\u76D6\u8303\u56F4", "Black coverage"),
-              ),
-              React.createElement(
-                "span",
-                null,
-                Math.round((l.blackRatio ?? 0.45) * 100),
-                "%",
-              ),
+            h(
+              "label",
+              { htmlFor: "glass-ratio" },
+              t("玻璃程度", "Glass amount"),
             ),
-            React.createElement("input", {
+            h("input", {
               id: "glass-ratio",
               type: "range",
-              min: "20",
-              max: "80",
-              step: "1",
-              value: Math.round((l.blackRatio ?? 0.45) * 100),
-              onChange: (n) => a("blackRatio", Number(n.target.value) / 100),
+              min: 20,
+              max: 80,
+              step: 1,
+              value: Math.round((1 - settings.blackRatio) * 100),
+              onChange: (event) =>
+                setSetting("blackRatio", 1 - Number(event.target.value) / 100),
             }),
-            React.createElement(
+            h(
               "div",
               { className: "slider-extents" },
-              React.createElement(
-                "span",
-                null,
-                t("\u66F4\u591A\u73BB\u7483", "More glass"),
-              ),
-              React.createElement(
-                "span",
-                null,
-                t("\u66F4\u591A\u9ED1\u8272", "More black"),
-              ),
+              h("span", null, t("黑色", "Black")),
+              h("span", null, t("玻璃", "Glass")),
             ),
           ),
         ),
-      React.createElement(
+      h(
         "div",
         { className: "slider-setting" },
-        React.createElement(
+        h(
           "div",
           null,
-          React.createElement(
+          h(
             "label",
             { htmlFor: "island-width" },
-            t("\u5C55\u5F00\u5BBD\u5EA6", "Expanded width"),
+            t("展开宽度", "Expanded width"),
           ),
-          React.createElement("span", null, l.islandWidth, " px"),
+          h("span", null, settings.islandWidth + " px"),
         ),
-        React.createElement("input", {
+        h("input", {
           id: "island-width",
           type: "range",
-          min: "420",
-          max: "800",
-          step: "10",
-          value: l.islandWidth,
-          onChange: (n) => a("islandWidth", Number(n.target.value)),
+          min: 520,
+          max: 800,
+          step: 8,
+          value: settings.islandWidth,
+          onChange: (event) =>
+            setSetting("islandWidth", Number(event.target.value)),
         }),
       ),
     ),
-    React.createElement(
+    h(
       SettingGroup,
-      { title: t("\u663E\u793A\u5185\u5BB9", "Content") },
-      React.createElement(SettingToggle, {
+      { title: t("显示内容", "Content") },
+      h(SettingToggle, {
         name: "showCapsule",
-        title: t(
-          "\u60AC\u6D6E\u7528\u91CF\u80F6\u56CA",
-          "Floating quota capsule",
-        ),
+        title: t("悬浮用量胶囊", "Floating usage capsule"),
         description: t(
-          "\u5728\u7075\u52A8\u5C9B\u4E0B\u65B9\u663E\u793A\u5269\u4F59\u989D\u5EA6\u4E0E\u91CD\u7F6E\u5012\u8BA1\u65F6\u3002",
-          "Show remaining quota and reset countdown below the Island.",
+          "显示剩余额度与重置倒计时，宽度随周期数量自适应。",
+          "Show remaining quota and reset countdown; width adapts to available periods.",
         ),
         icon: "chart",
       }),
-      React.createElement(SettingToggle, {
-        name: "hoverTransparency",
-        title: t("\u60AC\u505C\u900F\u660E\u5EA6", "Hover transparency"),
-        description: t(
-          "\u9F20\u6807\u7ECF\u8FC7\u6536\u8D77\u6001\u65F6\u964D\u4F4E\u5C9B\u4F53\u4E0D\u900F\u660E\u5EA6\u3002",
-          "Lower opacity when the pointer is over the compact Island.",
-        ),
-        icon: "eye",
-      }),
-      React.createElement(SettingToggle, {
+      h(SettingToggle, {
         name: "privacy",
-        title: t("\u9690\u79C1\u6A21\u5F0F", "Privacy mode"),
+        title: t("隐私模式", "Privacy mode"),
         description: t(
-          "\u9690\u85CF\u4EFB\u52A1\u6B63\u6587\u3001\u6807\u9898\u3001\u8D26\u6237\u4E0E\u7528\u91CF\u6570\u503C\u3002\u5BA1\u6279\u524D\u9700\u5173\u95ED\u5E76\u5BA1\u9605\u3002",
-          "Hide task details, titles, accounts and usage values. Turn off to review approvals.",
+          "隐藏任务内容和账户数据。",
+          "Hide task contents and account data.",
         ),
         icon: "eyeOff",
       }),
     ),
-    React.createElement(
-      "section",
-      { className: "settings-group" },
-      React.createElement(
-        "h2",
-        null,
-        t("\u4EFB\u52A1\u7279\u6548", "Task effects"),
-      ),
-      React.createElement(
-        "div",
-        { className: "effect-choices" },
-        [
-          ["smoke", t("\u72B6\u6001\u70DF\u96FE", "State smoke")],
-          ["quantum", t("\u91CF\u5B50\u566A\u70B9", "Quantum noise")],
-          ["wave", t("\u6DB2\u6001\u6D8C\u6D6A", "Liquid wave")],
-        ].map(([n, i]) =>
-          React.createElement(
-            "button",
-            {
-              className: `effect-choice ${l.effect === n ? "selected" : ""}`,
-              key: n,
-              "aria-pressed": l.effect === n,
-              onClick: () => a("effect", n),
-            },
-            React.createElement(
-              "div",
-              {
-                className: `effect-sample task-card effect-${n}`,
-                "aria-hidden": true,
-              },
-              React.createElement(window.QVEffects.ProgressEffect, {
-                react: React,
-                effect: n,
-                status: "working",
-                reduceMotion: l.reduceMotion,
-                task: {
-                  id: `settings-effect-${n}`,
-                  status: "working",
-                  progress: { fraction: 0.6 },
-                },
-              }),
-              l.effect === n &&
-                React.createElement(
-                  "span",
-                  null,
-                  React.createElement(Icon, { name: "check", size: 10 }),
-                ),
-            ),
-            React.createElement("strong", null, i),
-          ),
-        ),
-      ),
-      React.createElement(
-        "p",
-        { className: "group-note" },
-        t(
-          "上方特效样本使用演示进度；实际任务仅在 Agent 提供计划时显示进度。",
-          "Effect samples above use demonstration progress. Live cards show progress only when the agent provides a plan.",
-        ),
-      ),
-    ),
-    React.createElement(
+    h(
       SettingGroup,
-      null,
-      React.createElement(SettingToggle, {
-        name: "reduceMotion",
-        title: t("\u51CF\u5C11\u52A8\u6001\u6548\u679C", "Reduce motion"),
-        description: t(
-          "\u4FDD\u7559\u72B6\u6001\u8272\u4E0E\u9759\u6001\u8FDB\u5EA6\uFF0C\u505C\u7528\u88C5\u9970\u52A8\u753B\u3002\u7CFB\u7EDF\u8BBE\u7F6E\u4E5F\u4F1A\u88AB\u5C0A\u91CD\u3002",
-          "Keep state colors and static progress without decorative animation. System preferences are also respected.",
-        ),
-        icon: "pause",
-      }),
-    ),
-    React.createElement(
-      SettingGroup,
-      { title: t("\u81EA\u52A8\u5C55\u5F00", "Automatic opening") },
-      React.createElement(SettingToggle, {
+      { title: t("自动展开", "Automatic opening") },
+      h(SettingToggle, {
         name: "autoExpand",
-        title: t("\u81EA\u52A8\u5F39\u51FA", "Automatic popups"),
+        title: t("自动弹出", "Automatic popups"),
         description: t(
-          "\u54CD\u5E94\u65B0\u4EFB\u52A1\u3001\u5B8C\u6210\u6216\u5F85\u786E\u8BA4\u4E8B\u4EF6\u3002",
-          "Open for new tasks, completions or requests.",
+          "新任务、完成或待确认时弹出。",
+          "Open for new tasks, completions and requests.",
         ),
         icon: "island",
       }),
-      React.createElement(SettingToggle, {
-        name: "autoExpandOnStart",
-        title: t("\u65B0\u4EFB\u52A1\u5F00\u59CB", "New task starts"),
-        disabled: !l.autoExpand,
-      }),
-      React.createElement(SettingToggle, {
-        name: "autoExpandOnApproval",
-        title: t("\u9700\u8981\u786E\u8BA4", "Confirmation needed"),
-        disabled: !l.autoExpand,
-      }),
-      React.createElement(SettingToggle, {
-        name: "autoExpandOnComplete",
-        title: t("\u4EFB\u52A1\u5B8C\u6210", "Task completes"),
-        disabled: !l.autoExpand,
-      }),
-      React.createElement(
+      h(
         SettingRow,
         {
-          title: t("\u505C\u7559\u65F6\u95F4", "Stay open for"),
+          title: t("停留时间", "Stay open for"),
           description: t(
-            "\u5F85\u786E\u8BA4\u3001\u9F20\u6807\u60AC\u505C\u6216\u56FA\u5B9A\u65F6\u4FDD\u6301\u5C55\u5F00\u3002",
+            "待确认、悬停或固定时保持展开。",
             "Stay open for pending requests, hover or when pinned.",
           ),
         },
-        React.createElement(Select, {
-          label: t("\u505C\u7559\u65F6\u95F4", "Stay open for"),
-          value: String(l.collapseDelaySeconds),
-          disabled: !l.autoExpand,
-          onChange: (n) => a("collapseDelaySeconds", Number(n)),
-          options: [5, 8, 12, 15, 20, 30, 60].map((n) => [
-            String(n),
-            t(`${n} \u79D2`, `${n} s`),
-          ]),
-        }),
-      ),
-      React.createElement(
-        SettingRow,
-        {
-          title: t("\u7A7A\u95F2\u540E\u6536\u8D77", "Collapse after idle"),
-          description: t(
-            "\u56FA\u5B9A\u6216\u7B49\u5F85\u786E\u8BA4\u65F6\u4E0D\u4F1A\u81EA\u52A8\u6536\u8D77\u30020 \u8868\u793A\u5173\u95ED\u3002",
-            "Never auto-collapses while pinned or awaiting confirmation. 0 disables.",
-          ),
-        },
-        React.createElement(Select, {
-          label: t("\u6536\u8D77\u5EF6\u8FDF", "Collapse delay"),
-          value: String(l.compactDelaySeconds),
-          onChange: (n) => a("compactDelaySeconds", Number(n)),
-          options: [0, 5, 15, 30, 60, 120, 300].map((n) => [
-            String(n),
-            n === 0 ? t("\u5173\u95ED", "Off") : t(`${n} \u79D2`, `${n} s`),
-          ]),
-        }),
-      ),
-      React.createElement(
-        SettingRow,
-        {
-          title: t("\u7A7A\u95F2\u540E\u9690\u85CF", "Hide after idle"),
-          description: t(
-            "\u65E0\u6D3B\u52A8\u4EFB\u52A1\u65F6\u624D\u9690\u85CF\uFF0C\u53EF\u901A\u8FC7\u7CFB\u7EDF\u6258\u76D8\u6062\u590D\u30020 \u8868\u793A\u4FDD\u6301\u53EF\u89C1\u3002",
-            "Hides only without active tasks. Restore from the tray. 0 keeps it visible.",
-          ),
-        },
-        React.createElement(Select, {
-          label: t("\u9690\u85CF\u5EF6\u8FDF", "Hide delay"),
-          value: String(l.hiddenDelaySeconds),
-          onChange: (n) => a("hiddenDelaySeconds", Number(n)),
-          options: [0, 30, 60, 120, 300, 600].map((n) => [
-            String(n),
-            n === 0 ? t("\u5173\u95ED", "Off") : t(`${n} \u79D2`, `${n} s`),
+        h(Select, {
+          label: t("停留时间", "Stay open for"),
+          value: String(settings.collapseDelaySeconds),
+          disabled: !settings.autoExpand,
+          onChange: (value) =>
+            setSetting("collapseDelaySeconds", Number(value)),
+          options: [5, 8, 12, 15, 20, 30, 60].map((value) => [
+            String(value),
+            t(value + " 秒", value + " s"),
           ]),
         }),
       ),
@@ -715,144 +421,37 @@ function IslandSettings() {
   );
 }
 function UsageSettings() {
-  let { t, snapshot: e, setSetting: a } = useApp(),
-    [l, n] = React.useState(!1);
-  return React.createElement(
-    React.Fragment,
-    null,
-    React.createElement(
-      SettingGroup,
-      { title: t("\u989D\u5EA6\u4E0E\u8D26\u6237", "Quota and account") },
-      React.createElement(SettingToggle, {
-        name: "showRemainingQuota",
-        title: t("\u5269\u4F59\u989D\u5EA6", "Remaining quota"),
-        icon: "chart",
-      }),
-      React.createElement(SettingToggle, {
-        name: "showResetCountdown",
-        title: t("\u91CD\u7F6E\u5012\u8BA1\u65F6", "Reset countdown"),
-        icon: "clock",
-      }),
-      React.createElement(SettingToggle, {
-        name: "showSparkQuota",
-        title: t("Spark \u72EC\u7ACB\u989D\u5EA6", "Separate Spark quota"),
-        description: t(
-          "\u4EC5\u5728\u771F\u5B9E\u5FEB\u7167\u5305\u542B Spark \u989D\u5EA6\u65F6\u663E\u793A\u3002",
-          "Shown only when the real snapshot contains Spark quota.",
-        ),
-      }),
-      React.createElement(SettingToggle, {
-        name: "showCreditBalance",
-        title: t("\u79EF\u5206\u4F59\u989D", "Credit balance"),
-      }),
-    ),
-    React.createElement(
-      SettingGroup,
-      { title: t("\u7528\u91CF\u6458\u8981", "Usage summary") },
-      React.createElement(SettingToggle, {
-        name: "showUsageSummary",
-        title: t("\u663E\u793A\u7528\u91CF\u6458\u8981", "Show usage summary"),
-        icon: "chart",
-      }),
-      React.createElement(SettingToggle, {
-        name: "showDailyTokens",
-        title: t("\u4ECA\u65E5 Tokens", "Today\u2019s tokens"),
-        disabled: !e.settings.showUsageSummary,
-      }),
-      React.createElement(SettingToggle, {
-        name: "showThirtyDayTokens",
-        title: t("\u6700\u8FD1 30 \u5929 Tokens", "Last 30 days tokens"),
-        disabled: !e.settings.showUsageSummary,
-      }),
-      React.createElement(SettingToggle, {
-        name: "showLifetimeTokens",
-        title: t("\u7D2F\u8BA1 Tokens", "Lifetime tokens"),
-        description: t(
-          "\u4F18\u5148\u663E\u793A\u8D26\u6237\u7D2F\u8BA1\uFF1B\u5426\u5219\u6CE8\u660E\u4E3A\u53EF\u80FD\u4E0D\u5B8C\u6574\u7684\u672C\u5730\u8BB0\u5F55\u3002",
-          "Use account lifetime totals if available; otherwise label local history as potentially partial.",
-        ),
-        disabled: !e.settings.showUsageSummary,
-      }),
-    ),
-    React.createElement(
-      SettingGroup,
-      { title: t("\u5386\u53F2\u6A21\u5757", "History modules") },
-      React.createElement(SettingToggle, {
-        name: "showTokens",
-        title: t("Token \u7528\u91CF", "Token usage"),
-        description: t(
-          "\u6BCF\u65E5\u8BB0\u5F55\u4E0E\u8F93\u5165\u3001\u8F93\u51FA\u3001\u7F13\u5B58\u7EC6\u5206\u3002",
-          "Daily records with input, output and cached tokens.",
-        ),
-        icon: "chart",
-      }),
-      React.createElement(SettingToggle, {
-        name: "showCost",
-        title: t("\u6210\u672C\u4F30\u7B97", "Cost estimate"),
-        description: t(
-          "\u6839\u636E\u5DF2\u77E5\u6A21\u578B\u4EF7\u683C\u4F30\u7B97\u672C\u5730\u6D3B\u52A8\uFF0C\u4E0D\u7B49\u4E8E\u5B9E\u9645\u8D26\u5355\u3002",
-          "Estimate local activity with known model pricing, not actual billing.",
-        ),
-        icon: "chart",
-      }),
-      React.createElement(SettingToggle, {
-        name: "showActivity",
-        title: t("Token \u6D3B\u52A8", "Token activity"),
-        description: t(
-          "\u6BCF\u65E5\u7528\u91CF\u6D3B\u52A8\u4E0E\u5386\u53F2\u8BB0\u5F55\u3002",
-          "Daily usage activity and history.",
-        ),
-        icon: "chart",
-      }),
-      React.createElement(
-        SettingRow,
-        {
-          title: t(
-            "\u9ED8\u8BA4\u5386\u53F2\u8303\u56F4",
-            "Default history range",
-          ),
-        },
-        React.createElement(Select, {
-          label: t("\u5386\u53F2\u8303\u56F4", "History range"),
-          value: e.settings.tokenActivityRange,
-          onChange: (o) => a("tokenActivityRange", o),
-          options: [
-            ["week", t("\u4E00\u5468", "One week")],
-            ["month", t("\u4E00\u4E2A\u6708", "One month")],
-            ["threeMonths", t("\u4E09\u4E2A\u6708", "Three months")],
-            ["sixMonths", t("\u516D\u4E2A\u6708", "Six months")],
-          ],
-        }),
+  const { t } = useApp();
+  return h(
+    SettingGroup,
+    {
+      title: t("可选模块", "Optional modules"),
+      note: t(
+        "额度、Token 统计与账户信息始终显示；关闭的模块不占位。",
+        "Quota, token totals and account details are always shown; hidden modules leave no gap.",
       ),
-    ),
-    React.createElement(
-      Notice,
-      null,
-      t(
-        "\u672A\u83B7\u5F97\u7684\u6570\u636E\u4F1A\u663E\u793A\u4E3A\u201C\u2014\u201D\uFF0C\u4E0D\u5F53\u4F5C 0\u3002\u8D26\u6237\u603B\u91CF\u4E0E\u672C\u5730\u4F30\u7B97\u5355\u72EC\u5C55\u793A\uFF0C\u7EDD\u4E0D\u91CD\u590D\u76F8\u52A0\u3002",
-        "Unavailable data is shown as \u201C\u2014\u201D, not zero. Account totals and local estimates stay separate and are never double counted.",
+    },
+    h(SettingToggle, {
+      name: "showCost",
+      title: t("成本估算", "Cost estimate"),
+      description: t(
+        "最近 30 天的估算成本。",
+        "Estimated costs for the last 30 days.",
       ),
-    ),
-    React.createElement(
-      "button",
-      {
-        className: "primary-button",
-        onClick: () => {
-          n(!l);
-        },
-      },
-      l
-        ? t("\u6536\u8D77\u7528\u91CF\u7EDF\u8BA1", "Hide usage statistics")
-        : t("\u67E5\u770B\u7528\u91CF\u7EDF\u8BA1", "View usage statistics"),
-    ),
-    l &&
-      React.createElement(
-        "div",
-        { className: "settings-usage" },
-        React.createElement(UsageView, { full: !0 }),
+      icon: "chart",
+    }),
+    h(SettingToggle, {
+      name: "showActivity",
+      title: t("Token 活动", "Token activity"),
+      description: t(
+        "每日、每周和累计用量。",
+        "Daily, weekly and cumulative usage.",
       ),
+      icon: "chart",
+    }),
   );
 }
+
 function CodexSettings() {
   let { t, snapshot: e, invoke: a, busy: l } = useApp(),
     [n, i] = React.useState(null),
@@ -1931,8 +1530,8 @@ function SettingsView() {
         "Language, placement and app controls.",
       ),
       island: t(
-        "\u6750\u8D28\u3001\u9690\u79C1\u3001\u4EFB\u52A1\u7279\u6548\u4E0E\u81EA\u52A8\u5C55\u5F00\u3002",
-        "Material, privacy, task effects and automatic opening.",
+        "材质、隐私与自动展开。",
+        "Material, privacy and automatic opening.",
       ),
       usage: t(
         "\u9009\u62E9\u7528\u91CF\u9875\u663E\u793A\u7684\u53EF\u9009\u6A21\u5757\u3002",
@@ -1994,7 +1593,7 @@ function SettingsView() {
             onClick: () => e("minimize"),
             "aria-label": t("\u6700\u5C0F\u5316", "Minimize"),
           },
-          React.createElement(Icon, { name: "minus", size: 13 }),
+          React.createElement(Icon, { name: "minus", size: 12 }),
         ),
         React.createElement(
           "button",
@@ -2002,7 +1601,23 @@ function SettingsView() {
             onClick: () => e("maximize"),
             "aria-label": t("最大化或还原", "Maximize or restore"),
           },
-          "□",
+          h(
+            "svg",
+            {
+              width: 10,
+              height: 10,
+              viewBox: "0 0 10 10",
+              fill: "none",
+              "aria-hidden": true,
+            },
+            h("rect", {
+              x: 0.5,
+              y: 0.5,
+              width: 9,
+              height: 9,
+              stroke: "currentColor",
+            }),
+          ),
         ),
         React.createElement(
           "button",
@@ -2011,7 +1626,7 @@ function SettingsView() {
             onClick: () => e("showWindow", "close-settings"),
             "aria-label": t("\u5173\u95ED\u8BBE\u7F6E", "Close settings"),
           },
-          React.createElement(Icon, { name: "close", size: 13 }),
+          React.createElement(Icon, { name: "close", size: 12 }),
         ),
       ),
     ),

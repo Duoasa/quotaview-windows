@@ -15,3 +15,5 @@ Imports/*/inventory.json
 Imports/*/asar-inventory.json
 windows/dist/
 windows/release/
+webview2/build/
+webview2/release/

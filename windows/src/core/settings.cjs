@@ -6,7 +6,7 @@ const DEFAULTS = Object.freeze({
   theme: "system",
   material: "glass",
   effect: "quantum",
-  islandWidth: 520,
+  islandWidth: 680,
   blackRatio: 0.45,
   showCapsule: true,
   privacy: false,
@@ -25,11 +25,7 @@ const DEFAULTS = Object.freeze({
   reduceMotion: false,
   showTokens: true,
   showCost: true,
-  showActivity: true,
-  autoExpandOnStart: true,
-  autoExpandOnApproval: true,
-  autoExpandOnComplete: true,
-  collapseDelaySeconds: 15,
+  showActivity: true,  collapseDelaySeconds: 15,
   lowQuotaNotifications: true,
   completionNotifications: true,
   proxy: { mode: "system", url: "" },
@@ -41,41 +37,14 @@ const DEFAULTS = Object.freeze({
   showCreditBalance: true,
   showDailyTokens: true,
   showThirtyDayTokens: true,
-  showLifetimeTokens: true,
-  hoverTransparency: false,
-  compactDelaySeconds: 15,
-  hiddenDelaySeconds: 0,
-  codexActivityHooks: false,
+  showLifetimeTokens: true,  codexActivityHooks: false,
   codexHookScope: "all",
 });
 const bools = [
   "showCapsule",
   "privacy",
-  "autoExpand",
-  "alwaysOnTop",
-  "startAtLogin",
-  "notifications",
-  "autoCheckUpdates",
-  "reduceMotion",
-  "showTokens",
-  "showCost",
-  "showActivity",
-  "autoExpandOnStart",
-  "autoExpandOnApproval",
-  "autoExpandOnComplete",
-  "lowQuotaNotifications",
-  "completionNotifications",
-  "showRemainingQuota",
-  "showResetCountdown",
-  "showUsageSummary",
-  "showSparkQuota",
-  "showCreditBalance",
-  "showDailyTokens",
-  "showThirtyDayTokens",
-  "showLifetimeTokens",
-  "codexActivityHooks",
-  "hoverTransparency",
-];
+  "autoExpand",  "autoCheckUpdates",  "showCost",
+  "showActivity",  "codexActivityHooks",];
 function cleanSettings(input = {}) {
   const s = structuredClone(DEFAULTS);
   for (const key of bools)
@@ -84,24 +53,21 @@ function cleanSettings(input = {}) {
     language: ["system", "en", "zh"],
     theme: ["system", "light", "dark"],
     material: ["glass", "solid"],
-    effect: ["smoke", "quantum", "wave"],
+    effect: ["quantum"],
     codexHookScope: ["all", "compaction"],
     tokenActivityRange: ["week", "month", "threeMonths", "sixMonths"],
   };
   for (const [k, values] of Object.entries(enums))
     if (values.includes(input[k])) s[k] = input[k];
   for (const [k, min, max] of [
-    ["islandWidth", 380, 900],
+    ["islandWidth", 520, 800],
     ["blackRatio", 0.2, 0.8],
     ["refreshSeconds", 15, 3600],
-    ["collapseDelaySeconds", 0, 300],
-    ["compactDelaySeconds", 0, 300],
-    ["hiddenDelaySeconds", 0, 3600],
-  ])
+    ["collapseDelaySeconds", 5, 60],  ])
     if (Number.isFinite(input[k]))
       s[k] = Math.max(min, Math.min(max, input[k]));
   if (
-    ["active", "cursor", "primary"].includes(input.display) ||
+    ["active", "primary"].includes(input.display) ||
     /^\d+$/.test(String(input.display))
   )
     s.display = String(input.display);

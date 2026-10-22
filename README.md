@@ -1,41 +1,49 @@
 # QuotaView Windows
 
-QuotaView 的 Windows 灵动岛适配。当前主线位于 `windows/`，复用已有 Electron / React 后端、界面和 shader；不包含额度重置演示页或 macOS 桌面小组件。
+Windows 灵动岛应用，当前主线为 **.NET 10 + WebView2**，不再分发 Electron 或 Node.js 运行时。保留任务状态、额度与用量统计、本地 Agent 接入，以及 AI 球和量子噪点两种 GPU 动效；不包含桌面小组件。
 
-- Windows 11 22H2+ 使用 Acrylic 磨砂背景和 Mica 设置背景；关闭透明效果、高对比度或不支持材质的系统使用纯色回退。
-- 设置采用 Windows 导航、窗口按钮及深浅色样式。
-- AI 球、烟雾、量子噪点、波浪通过同一 WebGL2 渲染器运行；隐藏窗口暂停、减少动态效果使用静态输出。
-- Hook 和前台窗口检测使用小型 .NET Framework 辅助程序，不附带第二套 Node 运行时。
-- 额度、任务、用量、连接和通知沿用现有数据链路。Windows Codex Desktop 的可操作审批、问题回复和中断尚不支持；需在 Codex 内操作。
+- 灵动岛贴合屏幕顶部，悬停 150 ms 展开、移出 450 ms 收起；固定或待确认时保持展开。
+- 设置对齐 mac 版的通用、灵动岛、用量显示、连接、代理、反馈与关于。移除空闲隐藏、额外弹出开关和特效选择。
+- 用量页采用额度 / Token / 账户组合卡片、成本图与活动热图。充值卡仅展示，没有点击操作或二级页面。
+- AI 球和量子噪点在应用内持续播放，隐藏窗口停止绘制；窗口过渡仍遵循系统减少动态效果偏好。
+- Windows 11 支持的环境使用原生 Acrylic / Mica；系统关闭透明效果或不支持材质时回退到深色表面。
 
-## Windows x64 预览版下载
+## 克隆后构建
 
-[0.8.3-win.1.effects.2 Pre-release](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2) 提供便携 EXE（约 113.6 MiB，推荐快速测试）、NSIS 安装 EXE（约 113.9 MiB）、SHA-256 校验值和验证报告。目标为 Windows 10 22H2 / Windows 11 x64，需系统 .NET Framework 4.8。此版本未签名，实机验收尚未完成。
-
-## 开发与构建
-
-Windows x64，Node.js 24.19.0、pnpm 11.25.0、系统 .NET Framework 4.8：
+Windows x64，安装 .NET **10 SDK**、Node.js **24**、pnpm **11.25.0** 和 Microsoft Edge **WebView2 Evergreen Runtime**。构建依赖由锁文件固定，首次构建需要联网下载 NuGet / npm 依赖。
 
 ```powershell
-cd windows
-pnpm install --frozen-lockfile
-pnpm run build:helper
-pnpm test
-pnpm run dist
+git clone https://github.com/Duoasa/quotaview-windows.git
+cd quotaview-windows
+npm install --global pnpm@11.25.0
+.\build.ps1 -Action run
 ```
 
-生成未签名的 NSIS 安装包与便携 EXE。完整命令、源码来源和清理方式见 [Windows 构建说明](windows/README.md)。CI 定义见 [Windows validation](.github/workflows/windows.yml)，不发布 Release。
+```powershell
+# 原生 WebView2 界面、连续动画、本地协议与业务回归测试
+.\build.ps1 -Action test
+# 包含 .NET 运行时的完整 x64 便携目录及 ZIP
+.\build.ps1 -Action publish
+# 可选：使用电脑已有的 .NET 10 Desktop Runtime
+.\build.ps1 -Action publish -FrameworkDependent
+```
 
-## 当前验证状态
+运行入口：`webview2/release/standalone/QuotaView.Native.exe`。整个目录必须保留；ZIP 内不包含 WebView2 浏览器引擎，使用系统共享的 Evergreen Runtime。普通用户不需要 Node.js、pnpm 或 .NET SDK。
 
-本轮在 macOS 完成代码检查、单元/本地协议测试、隔离 Chromium 的页面与 GPU 冒烟检查，以及 .NET Framework 参考程序集编译。**[首次 Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39729392168) 已通过：27 项测试、页面与 GPU 检查、安装包构建、打包程序启动和大小检查。安装交互、DWM 磨砂、混合 DPI 和真实 Agent 流程仍待实机验收。** 不将旧原型的运行记录作为本轮证据。详细记录见 [移植检查表](docs/WINDOWS-PORT-CHECKLIST.md)。已从 `main` 提交 `f2046a7` 的[成功 CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39730000641) 发布上述 Pre-release，应用版本保持 `0.8.3-win.1.effects.2`。
+## 工程目录
 
-| 入口 | 用途 |
+| 目录 | 用途 |
 | --- | --- |
-| `windows/` | 当前应用、源码模块、资源、原生辅助程序、测试及打包 |
-| `ElectronEffects/src/` | 共享动效模型、GLSL 和 WebGL 渲染器 |
-| `Prototypes/EffectsLab/reference/` | 原有 shader 与参数的参考来源 |
-| `Imports/`、根目录 `src/` / `tests/` | 历史交付与 WPF 原型，不参与当前构建 |
-| [HANDOFF.md](HANDOFF.md) | 当前开发交接 |
+| `webview2/native/` | .NET 窗口、DPI / 屏幕定位、托盘、WebView2、安全边界、文件 / 进程 / 网络服务 |
+| `webview2/runtime/` | JavaScript 业务逻辑与 .NET 的适配桥 |
+| `windows/src/` | 复用的 Agent 接入、额度、设置、用量与应用控制器源码 |
+| `windows/renderer/` | React 界面源码与样式 |
+| `ElectronEffects/src/` | 共享 AI 球和量子噪点 shader、动效状态模型；目录名保留历史来源 |
+| `windows/tests/`、`webview2/tests/` | 业务 / 协议 / 原生桥 / 界面测试 |
+| `Imports/`、`Prototypes/`、根目录 `src/` | 历史交付与原型，不参与当前主线构建 |
 
-原 README 与 Handoff 已保存在 `docs/archive/`；历史记录中的“当前”不代表开发主线。
+详细架构、数据目录和验证说明见 [WebView2 构建说明](webview2/README.md) 与 [开发交接](HANDOFF.md)。GitHub Actions 构建主线并保存测试报告和 ZIP，不自动发布 Release。
+
+Windows Codex Desktop 的审批执行、问题回复与中断仍须在原客户端完成。Claude 等已配置的交互 Hook 保留原有协议，不把只读同步伪装成可操作审批。未知额度、缺失历史与不可估算成本显示为“—”，不虚构数据。
+
+此前的 [Electron 预览发行版](https://github.com/Duoasa/quotaview-windows/releases/tag/v0.8.3-win.1.effects.2) 属于旧架构，与本主线构建不同。

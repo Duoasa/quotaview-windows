@@ -6,7 +6,7 @@ const { test } = require("node:test"),
   path = require("node:path"),
   net = require("node:net"),
   { spawn } = require("node:child_process");
-const executable = path.resolve(__dirname, "../dist/helper/quotaview-hook.exe");
+const executable = process.env.QUOTAVIEW_HELPER || path.resolve(__dirname, "../dist/helper/quotaview-hook.exe");
 const windows = process.platform === "win32";
 function run(args, input = "") {
   return new Promise((resolve, reject) => {
@@ -80,7 +80,7 @@ test(
     assert.equal(smoke.code, 0);
     assert.equal(JSON.parse(smoke.out).ok, true);
     const failed = await run(
-      ["--quotaview-hook", "--configuration", "Z:\\missing-route.json"],
+      ["--quotaview-hook", "--configuration", path.join(os.tmpdir(), `quotaview-missing-${process.pid}-${Date.now()}`, "route.json")],
       "{}",
     );
     assert.equal(failed.code, 0);
