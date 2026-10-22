@@ -42,7 +42,6 @@ const DEFAULTS = Object.freeze({
   showDailyTokens: true,
   showThirtyDayTokens: true,
   showLifetimeTokens: true,
-  showResetAction: true,
   hoverTransparency: false,
   compactDelaySeconds: 15,
   hiddenDelaySeconds: 0,
@@ -74,7 +73,6 @@ const bools = [
   "showDailyTokens",
   "showThirtyDayTokens",
   "showLifetimeTokens",
-  "showResetAction",
   "codexActivityHooks",
   "hoverTransparency",
 ];
@@ -129,10 +127,14 @@ function cleanSettings(input = {}) {
       const u = new URL(input.proxy.url);
       if (
         ["http:", "https:", "socks5:", "socks4:"].includes(u.protocol) &&
+        u.hostname &&
         !u.username &&
-        !u.password
+        !u.password &&
+        (!u.pathname || u.pathname === "/") &&
+        !u.search &&
+        !u.hash
       )
-        s.proxy.url = u.href;
+        s.proxy.url = `${u.protocol}//${u.host}`;
     } catch {}
   }
   return s;
