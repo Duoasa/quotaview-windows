@@ -2,8 +2,16 @@
 const REPOSITORY = "Duoasa/quotaview-windows";
 const RELEASE_PAGE = `https://github.com/${REPOSITORY}/releases`;
 function windowsVersion(value) {
-  const m = String(value).match(/^v?(\d+)\.(\d+)\.(\d+)-win\.(\d+)$/);
-  return m ? m.slice(1).map(Number) : null;
+  const m = String(value).match(
+    /^v?(\d+)\.(\d+)\.(\d+)-win\.(\d+)(?:\.(effects|build)\.(\d+))?$/,
+  );
+  if (!m) return null;
+  const parts = [
+    ...m.slice(1, 5).map(Number),
+    m[5] === "build" ? 2 : m[5] === "effects" ? 1 : 0,
+    Number(m[6] || 0),
+  ];
+  return parts.every(Number.isSafeInteger) ? parts : null;
 }
 function compareVersions(a, b) {
   const x = windowsVersion(a),
@@ -15,6 +23,10 @@ function compareVersions(a, b) {
 }
 function selectRelease(rows, current) {
   if (!Array.isArray(rows)) throw Error("Unexpected release response");
+  if (!windowsVersion(current))
+    throw Error(
+      "The installed Windows version cannot be compared. Open the releases page to check manually.",
+    );
   const valid = rows
     .filter(
       (r) =>

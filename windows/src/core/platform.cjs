@@ -3,30 +3,6 @@ const { EventEmitter } = require("node:events");
 const { spawn } = require("node:child_process");
 // Uses the documented Windows user32 API. Only the foreground window rectangle
 // and owning PID are read: no title, content, keystrokes, screenshot or process scan.
-const FOREGROUND_SCRIPT = `$ErrorActionPreference='Stop'
-Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class QuotaViewForeground {
- [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }
- [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
- [DllImport("user32.dll")] public static extern IntPtr SetThreadDpiAwarenessContext(IntPtr context);
- [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
- [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint pid);
-}
-'@
-while ($true) {
- $previousDpi=[QuotaViewForeground]::SetThreadDpiAwarenessContext([IntPtr](-4))
- $window=[QuotaViewForeground]::GetForegroundWindow()
- $rect=New-Object QuotaViewForeground+RECT
- [uint32]$owner=0
- [void][QuotaViewForeground]::GetWindowThreadProcessId($window,[ref]$owner)
- if ([QuotaViewForeground]::GetWindowRect($window,[ref]$rect)) {
-  @{x=$rect.Left;y=$rect.Top;width=($rect.Right-$rect.Left);height=($rect.Bottom-$rect.Top);pid=$owner}|ConvertTo-Json -Compress
- }
- [void][QuotaViewForeground]::SetThreadDpiAwarenessContext($previousDpi)
- Start-Sleep -Milliseconds 1500
-}`;
 class ForegroundMonitor extends EventEmitter {
   constructor() {
     super();
@@ -36,14 +12,16 @@ class ForegroundMonitor extends EventEmitter {
   }
   start() {
     if (this.child || !this.available) return;
-    const command = Buffer.from(FOREGROUND_SCRIPT, "utf16le").toString(
-      "base64",
-    );
-    const child = this.child = spawn(
-      "powershell.exe",
-      ["-NoLogo", "-NoProfile", "-NonInteractive", "-EncodedCommand", command],
+    if (!this.executable) {
+      this.available = false;
+      this.emit("unavailable");
+      return;
+    }
+    const child = (this.child = spawn(
+      this.executable,
+      ["--foreground-monitor"],
       { windowsHide: true, stdio: ["ignore", "pipe", "pipe"] },
-    );
+    ));
     this.child.stdout.setEncoding("utf8");
     this.child.stdout.on("data", (data) => {
       if (this.child !== child) return;

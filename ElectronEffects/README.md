@@ -1,4 +1,8 @@
-# Electron 灵动岛特效接入
+# Electron 共享动效
+
+当前应用通过 `windows/scripts/build.cjs` 构建，复用本目录的球体、烟雾、量子噪点和波浪 WebGL2 渲染器。新逻辑与验收状态见 [Windows 构建说明](../windows/README.md)。`build.cjs` 是旧 ASAR 适配器，不参与当前分发；以下为历史接入记录，不代表本轮 Windows 实机验收。
+
+## 历史接入
 
 已将用户认可的 `Prototypes/EffectsLab` AI 球与量子噪点接入 dot 0.8.3-win.1 的实际 React 组件。输出版本为 `0.8.3-win.1.effects.2`。
 

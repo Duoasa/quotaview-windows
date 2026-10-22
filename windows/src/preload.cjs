@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld(
     configure: (request) => call("configure", request),
     openSettings: () => call("openSettings"),
     resize: (request) => call("resize", request),
+    region: (request) => call("region", request),
+    maximize: () => call("maximize"),
     openExternal: (url) => call("external", url),
     openPath: (p) => call("path", p),
     checkUpdates: () => call("updates"),

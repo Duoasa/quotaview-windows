@@ -1546,17 +1546,6 @@ small {
   margin: 12px 0 2px;
   overflow-wrap: anywhere;
 }
-.reset-demo {
-  font-family:
-    Asta Sans,
-    Segoe UI,
-    Microsoft YaHei UI,
-    sans-serif;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 14px 7px 5px;
-}
 .demo-label {
   font-size: 9px;
   letter-spacing: 0.05em;
@@ -1565,32 +1554,6 @@ small {
   border: 1px solid #d8a86735;
   background: #ae792412;
   border-radius: 20px;
-}
-.reset-ticket {
-  width: 210px;
-  height: 135px;
-  object-fit: contain;
-  margin: 24px 0 18px;
-}
-.reset-demo h2 {
-  font-size: 18px;
-  font-weight: 600;
-}
-.reset-intro {
-  color: #9797a0;
-  font-size: 11px;
-  text-align: center;
-  margin: 9px 0 12px;
-}
-.reset-demo .notice {
-  width: 100%;
-  margin: 12px 0 18px;
-}
-.reset-demo-button {
-  width: 100%;
-  padding: 12px;
-  border-radius: 12px;
-  font-size: 13px;
 }
 .demo-result {
   display: flex;
@@ -2961,4 +2924,201 @@ small {
 .task-card.status-interrupted .task-effect *,
 .task-card.status-unknown .task-effect * {
   animation: none !important;
+}
+
+/* Windows Fluent surfaces. Native backdrops are clipped by the main process;
+   opaque fallback remains legible when DWM/transparency is unavailable. */
+.fallback-backdrop .island-shell,
+.fallback-backdrop .standalone-capsule .quota-capsule {
+  background-color: #202023;
+}
+.native-backdrop.material-glass .island-shell,
+.native-backdrop.material-glass .standalone-capsule .quota-capsule {
+  background: rgba(20, 20, 24, 0.42);
+  backdrop-filter: none;
+}
+.settings-window {
+  border-radius: 0;
+  font-family:
+    "Segoe UI Variable", "Segoe UI", "Microsoft YaHei UI", sans-serif;
+}
+.settings-backdrop .settings-window {
+  background: transparent;
+}
+.settings-backdrop .settings-sidebar,
+.settings-backdrop .window-titlebar {
+  background: transparent;
+}
+.settings-sidebar nav button {
+  position: relative;
+  border-radius: 4px;
+}
+.settings-sidebar nav button.selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  height: 18px;
+  width: 3px;
+  border-radius: 2px;
+  background: #8ab4f8;
+}
+.view-settings button,
+.view-settings input,
+.view-settings select {
+  border-radius: 4px;
+}
+.view-settings .window-controls button {
+  border-radius: 0;
+}
+@media (forced-colors: active) {
+  .app,
+  .settings-window,
+  .island-shell,
+  .quota-capsule,
+  .task-card {
+    background: Canvas !important;
+    color: CanvasText !important;
+    border: 1px solid CanvasText !important;
+  }
+  .task-effect,
+  .qv-orb-canvas {
+    display: none;
+  }
+  button,
+  select,
+  input {
+    border: 1px solid ButtonText;
+  }
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 2px solid Highlight;
+  }
+  .settings-sidebar nav button.selected::before {
+    background: Highlight;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+.view-settings .sidebar-icon {
+  background: transparent !important;
+  box-shadow: none;
+  color: inherit;
+}
+.view-settings .group-box {
+  border-radius: 8px;
+}
+.view-settings .toggle {
+  border-radius: 20px;
+  border: 1px solid #96969f;
+  box-shadow: none;
+}
+.view-settings .toggle.on {
+  background: #8ab4f8;
+  border-color: #8ab4f8;
+}
+.view-settings .toggle.on > span {
+  background: #202020;
+}
+.effect-choice .effect-sample {
+  height: 76px;
+  padding: 0;
+  margin: 0 0 8px;
+}
+.theme-light.view-settings {
+  color-scheme: light;
+  --line: #00000012;
+  --muted: #616161;
+}
+.theme-light .settings-window {
+  background: #f3f3f3;
+  color: #1b1b1b;
+  border-color: #ccc;
+}
+.theme-light.settings-backdrop .settings-window {
+  background: transparent;
+}
+.theme-light .settings-sidebar,
+.theme-light .window-titlebar {
+  background: transparent;
+  border-color: #0000000a;
+}
+.theme-light .window-titlebar > span {
+  color: #424242;
+}
+.theme-light .settings-sidebar nav button.selected {
+  color: #161616;
+  background: #0000000a;
+}
+.theme-light .settings-sidebar nav button.selected::before {
+  background: #0067c0;
+}
+.theme-light .settings-sidebar nav button:hover,
+.theme-light .window-controls button:hover {
+  background: #0000000d;
+}
+.theme-light .window-controls .window-close:hover {
+  color: white;
+  background: #c42b1c;
+}
+.theme-light.view-settings .group-box {
+  background: #ffffffb3;
+  border-color: #0000000a;
+}
+.theme-light.view-settings .setting-row,
+.theme-light.view-settings .choice-row {
+  border-color: #0000000a;
+}
+.theme-light.view-settings .settings-group > h2 {
+  color: #242424;
+}
+.theme-light.view-settings
+  :is(
+    .setting-copy p,
+    .settings-page-heading p,
+    .group-note,
+    .choice-row small,
+    .link-row small,
+    .sidebar-foot
+  ) {
+  color: #616161;
+}
+.theme-light.view-settings :is(input, select, textarea, .segmented) {
+  color: #202020;
+  background: #ffffffcc;
+  border-color: #00000024;
+}
+.theme-light.view-settings .segmented button {
+  color: #424242;
+}
+.theme-light.view-settings .segmented button.selected {
+  color: white;
+  background: #0067c0;
+}
+.theme-light.view-settings .toggle.on {
+  background: #0067c0;
+  border-color: #0067c0;
+}
+.theme-light.view-settings .toggle.on > span {
+  background: white;
+}
+.theme-light.fallback-backdrop .standalone-capsule .quota-capsule {
+  background: #f3f3f3;
+}
+.theme-light.native-backdrop .standalone-capsule .quota-capsule {
+  background: rgba(243, 243, 243, 0.5);
+}
+.theme-light.fallback-backdrop .island-footer {
+  color: #f3f3f3;
+}
+.theme-light.fallback-backdrop .island-footer .icon-button {
+  color: #f3f3f3;
+  background: #ffffff16;
 }
