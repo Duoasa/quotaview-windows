@@ -30,7 +30,7 @@ function StatusOrb({ status: t = "unknown", small: e = !1, task: a }) {
   });
 }
 function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
-  let { snapshot: n, t: i, locale: u, now: o } = useApp(),
+  let { snapshot: n, t: i, locale: u, now: o, invoke } = useApp(),
     c = React.useRef(null);
   React.useEffect(() => observeVisibility(c.current), []);
   let r = n.settings.privacy,
@@ -66,9 +66,20 @@ function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
                   "Waiting for public progress",
                 );
   return React.createElement(
-    "button",
+    "div",
     {
       ref: c,
+      role: "button",
+      tabIndex: 0,
+      onKeyDown: (event) => {
+        if (
+          event.target === event.currentTarget &&
+          ["Enter", " "].includes(event.key)
+        ) {
+          event.preventDefault();
+          a?.();
+        }
+      },
       type: "button",
       className: `task-card status-${f} effect-quantum ${e ? "selected" : ""} ${l ? "nested" : ""} ${g.known ? "known-progress" : "unknown-progress"}`,
       onClick: a,
@@ -126,7 +137,33 @@ function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
               " ",
               m,
             ),
-          React.createElement(ProviderIcon, { provider: t.provider }),
+          React.createElement(
+            "button",
+            {
+              className: "task-archive",
+              title: i("从灵动岛归档", "Archive from island"),
+              "aria-label": i("归档任务", "Archive task"),
+              onClick: (event) => {
+                event.stopPropagation();
+                invoke("dismissTask", { id: t.id });
+              },
+            },
+            React.createElement(ProviderIcon, { provider: t.provider }),
+            React.createElement(
+              "svg",
+              {
+                className: "archive-glyph",
+                viewBox: "0 0 16 16",
+                fill: "none",
+                "aria-hidden": true,
+              },
+              React.createElement("path", {
+                d: "M2 3h12v3H2z M3 6v7h10V6 M6 9h4",
+                stroke: "currentColor",
+                strokeWidth: 1.2,
+              }),
+            ),
+          ),
         ),
         React.createElement(
           "span",
@@ -835,22 +872,16 @@ function IslandView() {
         suppressHover.current = pointerInside.current;
         w(false);
       }
-      (i(O), a("resize", { expanded: O }), O || (o("tasks"), r(null)));
+      (i(O), O || (o("tasks"), r(null)));
     };
   (React.useLayoutEffect(() => {
     if (!f.current) return;
     let O = () => {
         let rt = n
-            ? Math.min(
-                820,
-                Math.ceil(
-                  Math.min(
-                    f.current.querySelector(".island-body")?.scrollHeight || 0,
-                    650,
-                  ) + 128,
-                ),
-              )
-            : 56,
+            ? Math.ceil(
+                f.current.querySelector(".island-shell")?.scrollHeight || 172,
+              ) + 8
+            : 46,
           ue = `${n}:${rt}`;
         D.current !== ue &&
           ((D.current = ue), a("resize", { expanded: n, height: rt }));
@@ -892,6 +923,11 @@ function IslandView() {
     "main",
     {
       className: `island-window ${n ? "expanded" : "collapsed"}`,
+      style: {
+        "--island-width": t.settings.islandWidth + "px",
+        "--body-max-height":
+          Math.max(160, Math.min(650, window.screen.availHeight - 190)) + "px",
+      },
       onMouseEnter: () => {
         pointerInside.current = true;
         (clearTimeout(N.current), a("resize", { expanded: n, hovered: !0 }));

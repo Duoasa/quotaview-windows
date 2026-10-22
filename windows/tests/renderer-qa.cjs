@@ -76,6 +76,12 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     return win.capture(target);
   };
   await inject(island, fixture);
+  const frames = [];
+  const setBounds = island.setBounds.bind(island);
+  island.setBounds = (b) => {
+    frames.push({ ...b });
+    setBounds(b);
+  };
   const hover = await run(
     island,
     `
@@ -95,6 +101,17 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     return {dwell:true,pinned:true,leave:true,escape:true,reentry:true};
   `,
   );
+  island.setBounds = setBounds;
+  const moving = frames.filter((b) => b.width > 270 && b.width < 680);
+  if (
+    moving.length < 3 ||
+    moving.some(
+      (b) =>
+        Math.abs(b.x + b.width / 2 - (moving[0].x + moving[0].width / 2)) > 1 ||
+        b.y !== moving[0].y,
+    )
+  )
+    throw Error("Expansion must animate around a fixed top center");
   await inject(island, {
     ...fixture,
     ui: { expanded: true, pinned: false },
@@ -136,8 +153,8 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     check(account.left>=metrics.right && Math.abs(account.top-metrics.top)<2,'Account is not beside the quota/token cards');
     const ticket=document.querySelector('.recharge-ticket');check(ticket&&ticket.getAttribute('aria-disabled')==='true'&&ticket.tabIndex===-1,'Recharge card must be noninteractive');
     ticket.click();check(document.querySelector('.usage-dashboard'),'Recharge card navigated');
-    document.querySelectorAll('.activity-mode button')[1].click();await wait(70);check(document.querySelectorAll('.activity-cell').length===42,'Weekly aggregation');
-    document.querySelectorAll('.activity-mode button')[2].click();await wait(70);check(document.querySelectorAll('.activity-cell').length===294,'Cumulative activity');
+    document.querySelectorAll('.activity-mode button')[1].click();await wait(70);check(document.querySelectorAll('.activity-cell').length===371,'Weekly aggregation');
+    document.querySelectorAll('.activity-mode button')[2].click();await wait(70);check(document.querySelectorAll('.activity-cell').length===371,'Cumulative activity');
     document.querySelectorAll('.activity-mode button')[0].click();await wait(80);
     check(document.querySelector('.usage-panel').scrollWidth<=document.querySelector('.usage-panel').clientWidth+1,'Usage overflow');
     return {bento:true,ticketDisplayOnly:true,activityModes:true};
@@ -146,7 +163,36 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   await capture(island, "usage");
   await run(
     island,
-    "await window.quotaView.updateSettings({islandWidth:520});await wait(250);const el=document.querySelector('.usage-panel');check(el.scrollWidth<=el.clientWidth+1,'Narrow usage overflow');return true;",
+    "document.querySelectorAll(\'.activity-mode button\')[1].click();await wait(50);return true;",
+  );
+  await capture(island, "activity-weekly");
+  await run(
+    island,
+    "document.querySelectorAll(\'.activity-mode button\')[2].click();await wait(50);return true;",
+  );
+  await capture(island, "activity-cumulative");
+  await run(
+    island,
+    "document.querySelectorAll(\'.activity-mode button\')[0].click();return true;",
+  );
+  await inject(island, {
+    ...fixture,
+    quotas: {
+      codex: {
+        ...fixture.quotas.codex,
+        windows: [fixture.quotas.codex.windows[1]],
+      },
+    },
+    ui: { expanded: true },
+  });
+  await run(
+    island,
+    "await wait(400);const grid=document.querySelector(\'.quota-grid\').getBoundingClientRect(),card=document.querySelector(\'.quota-card\').getBoundingClientRect();check(Math.abs(grid.width-card.width)<2,\'Single quota leaves an empty column\');return true;",
+  );
+  await capture(island, "usage-single");
+  await run(
+    island,
+    "await window.quotaView.updateSettings({islandWidth:520});await wait(500);const el=document.querySelector('.usage-panel');check(el.scrollWidth<=el.clientWidth+1,'Narrow usage overflow');return true;",
   );
   await capture(island, "usage-narrow");
   await run(
@@ -161,8 +207,11 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     const text=document.querySelector('.settings-content').textContent;
     check(!text.includes('空闲')&&!text.includes('任务特效')&&!document.querySelector('.effect-choices'),'Removed preferences remain visible');
     const controls=[...document.querySelectorAll('.window-controls button')].map(el=>{const r=el.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height};});
-    check(controls.length===3&&controls.every(r=>Math.abs(r.width-46)<1&&Math.abs(r.height-36)<1),'Caption control sizes');
+    check(controls.length===3&&controls.every(r=>Math.abs(r.width-46)<1&&Math.abs(r.height-32)<1),'Caption control sizes');
     check(controls[2].x+controls[2].width<=innerWidth&&controls[0].y<3,'Caption controls are misplaced');
+    check(!document.querySelector('.preview-tag'),'Preview annotation remains');
+    const preview=document.querySelector('.island-preview').getBoundingClientRect(), shell=document.querySelector('.preview-shell').getBoundingClientRect();
+    check(Math.abs(preview.top-shell.top)<1,'Preview is detached from top');
     const detail=document.querySelector('.settings-detail');check(detail.scrollWidth<=detail.clientWidth+1,'Settings horizontal overflow');
     return {removedPreferences:true,controls,viewport:{width:innerWidth,height:innerHeight,dpi:devicePixelRatio}};
   `,

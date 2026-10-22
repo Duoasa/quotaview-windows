@@ -153,14 +153,6 @@ function IslandPreview() {
     { className: `island-preview material-${e.settings.material}` },
     React.createElement(
       "div",
-      { className: "preview-tag" },
-      t(
-        "\u5B9E\u65F6\u6570\u636E\u5916\u89C2\u9884\u89C8",
-        "Appearance preview \xB7 live data",
-      ),
-    ),
-    React.createElement(
-      "div",
       {
         className: "preview-shell",
         style: {
@@ -291,26 +283,6 @@ function IslandSettings() {
         h(
           React.Fragment,
           null,
-          h(
-            SettingRow,
-            {
-              title: t("玻璃外观", "Glass appearance"),
-              description: t(
-                "底部玻璃、按钮和用量胶囊统一切换。",
-                "Applies to the lower glass, controls and capsule.",
-              ),
-            },
-            h(SegmentedControl, {
-              value: settings.theme,
-              onChange: (value) => setSetting("theme", value),
-              label: t("玻璃外观", "Glass appearance"),
-              options: [
-                ["light", t("浅色", "Light")],
-                ["dark", t("深色", "Dark")],
-                ["system", t("自动", "Auto")],
-              ],
-            }),
-          ),
           h(
             "div",
             { className: "slider-setting" },
@@ -1606,15 +1578,15 @@ function SettingsView() {
             {
               width: 10,
               height: 10,
-              viewBox: "0 0 10 10",
+              viewBox: "0 0 12 12",
               fill: "none",
               "aria-hidden": true,
             },
             h("rect", {
-              x: 0.5,
-              y: 0.5,
-              width: 9,
-              height: 9,
+              x: 2,
+              y: 2,
+              width: 8,
+              height: 8,
               stroke: "currentColor",
             }),
           ),

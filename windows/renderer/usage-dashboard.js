@@ -159,34 +159,63 @@ function CostCard({ days }) {
   );
 }
 
-function Activity({ days }) {
+function Activity({ days, lifetimeTokens }) {
   const { t, locale, now, snapshot } = useApp();
-  const [mode, setMode] = React.useState("daily");
-  const records = React.useMemo(
-    () => calendarDays(days, 294, now),
-    [days, now],
+  const [mode, setMode] = React.useState("daily"),
+    [selected, setSelected] = React.useState(null);
+  const today = new Date(now);
+  today.setUTCHours(0, 0, 0, 0);
+  const start = new Date(today);
+  start.setUTCDate(start.getUTCDate() - start.getUTCDay() - 364);
+  const values = new Map(days.map((d) => [d.date, d.total]));
+  const daily = Array.from({ length: 371 }, (_, i) => {
+    const date = new Date(+start + i * 86400000);
+    const key = date.toISOString().slice(0, 10);
+    return { date: key, total: values.get(key) ?? null, future: date > today };
+  });
+  const windowTotal = daily.reduce(
+    (s, d) => s + (d.future ? 0 : d.total || 0),
+    0,
   );
-  const cells = React.useMemo(() => {
-    if (mode === "weekly")
-      return Array.from({ length: 42 }, (_, week) => {
-        const group = records.slice(week * 7, week * 7 + 7),
-          known = group.filter((day) => isFiniteNumber(day.total));
-        return {
-          date: group[0].date + " – " + group.at(-1).date,
-          total: known.length ? sumKnown(known, "total") : null,
-          partial: known.length < 7,
-        };
-      });
-    if (mode === "cumulative") {
-      let total = 0;
-      return records.map((day) => {
-        if (isFiniteNumber(day.total)) total += day.total;
-        return { ...day, total: isFiniteNumber(day.total) ? total : null };
-      });
+  let running = isFiniteNumber(lifetimeTokens)
+    ? Math.max(0, lifetimeTokens - windowTotal)
+    : days
+        .filter((d) => d.date < daily[0].date)
+        .reduce((s, d) => s + (d.total || 0), 0);
+  let hasData = running > 0;
+  const weeks = Array.from({ length: 53 }, (_, i) => {
+    const week = daily.slice(i * 7, i * 7 + 7),
+      known = week.filter((d) => !d.future && isFiniteNumber(d.total));
+    const total = known.reduce((s, d) => s + d.total, 0);
+    if (known.length) hasData = true;
+    running += total;
+    return {
+      date: week[0].date,
+      total:
+        mode === "weekly"
+          ? known.length
+            ? total
+            : null
+          : hasData
+            ? running
+            : null,
+    };
+  });
+  const data = mode === "daily" ? daily : weeks;
+  const maximum = Math.max(
+    1,
+    ...data.map((d) => (d.future ? 0 : d.total || 0)),
+  );
+  const months = [];
+  for (let col = 0; col < 53; col++) {
+    const date = daily[col * 7].date;
+    if (!col || date.slice(0, 7) !== daily[(col - 1) * 7].date.slice(0, 7)) {
+      if (months.length && col - months.at(-1).col < 3) months.pop();
+      months.push({ col, date });
     }
-    return records;
-  }, [records, mode]);
-  const maximum = Math.max(1, ...cells.map((day) => day.total || 0));
+  }
+  const describe = (d) =>
+    d.date + " · " + formatNumber(d.total, locale) + " tokens";
   return h(
     "section",
     { className: "data-card activity-bento" },
@@ -194,6 +223,8 @@ function Activity({ days }) {
       "div",
       { className: "card-title-line" },
       h("span", null, t("Token 活动", "Token activity")),
+      selected &&
+        h("span", { className: "activity-selection" }, describe(selected)),
       h(
         "div",
         {
@@ -201,19 +232,19 @@ function Activity({ days }) {
           role: "group",
           "aria-label": t("活动范围", "Activity mode"),
         },
-        ...["daily", "weekly", "cumulative"].map((value, index) =>
+        ...["daily", "weekly", "cumulative"].map((v, i) =>
           h(
             "button",
             {
-              key: value,
-              "aria-pressed": mode === value,
-              className: mode === value ? "selected" : "",
-              onClick: () => setMode(value),
+              key: v,
+              "aria-pressed": mode === v,
+              className: mode === v ? "selected" : "",
+              onClick: () => {
+                setMode(v);
+                setSelected(null);
+              },
             },
-            t(
-              ["每天", "每周", "累计"][index],
-              ["Daily", "Weekly", "Total"][index],
-            ),
+            t(["每天", "每周", "累计总量"][i], ["Daily", "Weekly", "Total"][i]),
           ),
         ),
       ),
@@ -221,65 +252,68 @@ function Activity({ days }) {
     snapshot.settings.privacy
       ? h("p", { className: "muted" }, t("数据已隐藏", "Data hidden"))
       : h(
-          React.Fragment,
-          null,
+          "div",
+          { className: "activity-scroll" },
           h(
             "div",
-            { className: "activity-scroll" },
+            { className: "activity-plot" },
             h(
               "div",
               { className: "activity-grid mode-" + mode },
-              ...cells.map((day) =>
-                h("span", {
-                  key: day.date,
+              ...Array.from({ length: 371 }, (_, i) => {
+                const col = Math.floor(i / 7),
+                  row = i % 7,
+                  d = mode === "daily" ? daily[i] : weeks[col];
+                const filled =
+                  d.total > 0 &&
+                  row >= 7 - Math.max(1, Math.ceil((d.total / maximum) * 7));
+                const level = !d.total ? 0 : d.total / maximum;
+                const color =
+                  mode !== "daily"
+                    ? filled
+                      ? "#0787eb"
+                      : "#303030"
+                    : !level
+                      ? "#303030"
+                      : level < 0.25
+                        ? "#173e68"
+                        : level < 0.5
+                          ? "#235b99"
+                          : level < 0.75
+                            ? "#3889ed"
+                            : "#80baff";
+                return h("button", {
+                  key: i,
                   className:
-                    "activity-cell " + (day.total === null ? "unknown" : ""),
-                  style: {
-                    "--level":
-                      day.total === null
-                        ? 0
-                        : day.total === 0
-                          ? 0.08
-                          : 0.22 + 0.78 * Math.sqrt(day.total / maximum),
-                  },
-                  title:
-                    day.date +
-                    " · " +
-                    formatNumber(day.total, locale) +
-                    " tokens" +
-                    (day.partial
-                      ? t("（部分记录）", " (partial records)")
+                    "activity-cell" +
+                    (mode === "daily" && selected?.date === d.date
+                      ? " selected"
                       : ""),
-                }),
+                  disabled: !!d.future,
+                  style: {
+                    background: color,
+                    visibility: d.future ? "hidden" : "visible",
+                  },
+                  title: describe(d),
+                  "aria-label": describe(d),
+                  onClick: () => setSelected(d),
+                });
+              }),
+            ),
+            h(
+              "div",
+              { className: "activity-months" },
+              ...months.map((m) =>
+                h(
+                  "span",
+                  { key: m.date, style: { left: (m.col / 53) * 100 + "%" } },
+                  new Date(m.date + "T12:00:00Z").toLocaleDateString(locale, {
+                    month: "short",
+                    timeZone: "UTC",
+                  }),
+                ),
               ),
             ),
-          ),
-          h(
-            "div",
-            { className: "activity-months" },
-            ...Array.from({ length: 7 }, (_, index) => {
-              const day = records[Math.min(293, index * 49)];
-              return h(
-                "span",
-                { key: day.date },
-                new Date(day.date + "T12:00:00").toLocaleDateString(locale, {
-                  month: "short",
-                }),
-              );
-            }),
-          ),
-          h(
-            "p",
-            { className: "chart-note" },
-            mode === "cumulative"
-              ? t(
-                  "累计显示本页已记录的用量；空白日期表示缺少记录。",
-                  "Cumulative recorded usage on this page; empty dates have no record.",
-                )
-              : t(
-                  "空白日期表示缺少记录，不代表零用量。",
-                  "Empty dates have no record, rather than zero usage.",
-                ),
           ),
         ),
   );
@@ -459,7 +493,11 @@ export function UsageDashboard() {
     ),
     settings.showCost &&
       h(CostCard, { days: usage?.localDays || usage?.days || [] }),
-    settings.showActivity && h(Activity, { days: usage?.days || [] }),
+    settings.showActivity &&
+      h(Activity, {
+        days: usage?.days || [],
+        lifetimeTokens: usage?.summary?.lifetimeTokens,
+      }),
     !lifetime &&
       h(
         "p",

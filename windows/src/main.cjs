@@ -255,42 +255,68 @@ function runApplication() {
         );
       }
   }
+  let boundsTimer = null,
+    boundsTarget = null;
   function reposition(height) {
     if (!island || island.isDestroyed()) return;
     const d = display();
-    island.setBounds(
-      placeIsland(
-        d,
-        expanded ? settings.islandWidth : 270,
-        expanded
-          ? Math.min(
-              height ||
-                Math.min(
-                  island.getBounds().height < 180
-                    ? 570
-                    : island.getBounds().height,
-                  800,
-                ),
-              d.workArea.height - (settings.showCapsule ? 112 : 16),
-            )
-          : 66,
-      ),
+    const target = placeIsland(
+      d,
+      expanded ? settings.islandWidth : 270,
+      expanded
+        ? Math.min(
+            height || boundsTarget?.height || 570,
+            d.workArea.height - (settings.showCapsule ? 112 : 16),
+          )
+        : 46,
     );
-    if (capsule && !capsule.isDestroyed()) {
-      const b = placeIsland(d, 360, 76);
-      capsule.setBounds({
-        ...b,
-        y: b.y + (expanded ? island.getBounds().height : 66) + 8,
+    if (JSON.stringify(target) === JSON.stringify(boundsTarget)) return;
+    const from = island.getBounds();
+    boundsTarget = target;
+    clearInterval(boundsTimer);
+    const started = Date.now();
+    const apply = (p) => {
+      const ease = 1 - Math.pow(1 - p, 3);
+      const width = Math.round(from.width + (target.width - from.width) * ease);
+      const height = Math.round(
+        from.height + (target.height - from.height) * ease,
+      );
+      // Anchor every frame to the same screen center and top edge.
+      island.setBounds({
+        ...target,
+        x: Math.round(target.x + target.width / 2 - width / 2),
+        width,
+        height,
       });
+      if (capsule && !capsule.isDestroyed()) {
+        const b = placeIsland(d, 360, 76);
+        capsule.setBounds({ ...b, y: target.y + height - 22 });
+      }
+    };
+    if (
+      !island.qvRegion ||
+      from.y !== target.y ||
+      Math.abs(from.x + from.width / 2 - target.x - target.width / 2) > 2
+    ) {
+      apply(1);
+      return;
     }
+    boundsTimer = setInterval(() => {
+      if (island.isDestroyed()) {
+        clearInterval(boundsTimer);
+        return;
+      }
+      const p = Math.min(1, (Date.now() - started) / 320);
+      apply(p);
+      if (p === 1) clearInterval(boundsTimer);
+    }, 16);
   }
   function setExpanded(value, reason) {
     clearTimeout(hideTimer);
-    const changed = expanded !== !!value;
     expanded = !!value;
     if (!expanded) pinned = false;
     expansionReason = reason || null;
-    if (changed) reposition(expanded ? 570 : 66);
+    // Measure content before positioning; do not jump through a placeholder.
     publish();
   }
   function snapshot() {
@@ -394,7 +420,7 @@ function runApplication() {
       }
       if (previous !== t.status && settings.autoExpand) {
         if (
-          (t.status === "waiting") ||
+          t.status === "waiting" ||
           (previous &&
             terminal &&
             t.verified !== false &&
@@ -411,7 +437,9 @@ function runApplication() {
               if (
                 !pinned &&
                 !hovered &&
-                !snapshot().tasks.some((task) => task.status === "waiting" || task.approval)
+                !snapshot().tasks.some(
+                  (task) => task.status === "waiting" || task.approval,
+                )
               )
                 setExpanded(false);
             }, delay * 1000);
@@ -811,7 +839,7 @@ function runApplication() {
       if (Number.isFinite(r.height))
         reposition(
           Number.isFinite(r.height)
-            ? Math.max(180, Math.min(r.height, 900))
+            ? Math.max(46, Math.min(r.height, 900))
             : undefined,
         );
       publish();
@@ -1039,7 +1067,11 @@ function runApplication() {
         const effects = await island.webContents.executeJavaScript(
           "window.QVEffects.selfTest()",
         );
-        const ui = await require("../tests/renderer-qa.cjs")({island, preferences, folder:smokeReport ? path.dirname(smokeReport) : null});
+        const ui = await require("../tests/renderer-qa.cjs")({
+          island,
+          preferences,
+          folder: smokeReport ? path.dirname(smokeReport) : null,
+        });
         const topAligned = island.getBounds().y === display().bounds.y;
         if (!topAligned) throw Error("Island is not aligned to screen top");
         const evidence = {

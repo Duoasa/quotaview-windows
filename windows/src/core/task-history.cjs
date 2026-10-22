@@ -2,7 +2,6 @@
 const fs = require("node:fs"),
   path = require("node:path"),
   crypto = require("node:crypto");
-const TERMINAL = new Set(["completed", "failed", "interrupted"]);
 function fingerprint(task) {
   return crypto
     .createHash("sha256")
@@ -34,13 +33,9 @@ class DismissedTasks {
     } catch {}
   }
   has(task) {
-    return TERMINAL.has(task.status) && this.entries.has(fingerprint(task));
+    return this.entries.has(fingerprint(task));
   }
   dismiss(task) {
-    if (!TERMINAL.has(task.status))
-      throw Error(
-        "Only finished task cards can be dismissed. This does not answer or cancel agent requests.",
-      );
     this.entries.set(fingerprint(task), Date.now());
     while (this.entries.size > 4096)
       this.entries.delete(this.entries.keys().next().value);

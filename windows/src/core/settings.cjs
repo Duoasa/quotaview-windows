@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const DEFAULTS = Object.freeze({
   language: "system",
-  theme: "system",
+  theme: "dark",
   material: "glass",
   effect: "quantum",
   islandWidth: 680,
@@ -103,6 +103,7 @@ function cleanSettings(input = {}) {
         s.proxy.url = `${u.protocol}//${u.host}`;
     } catch {}
   }
+  s.theme = "dark";
   return s;
 }
 class SettingsStore {
