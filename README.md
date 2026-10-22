@@ -24,7 +24,7 @@ pnpm run dist
 
 ## 当前验证状态
 
-本轮在 macOS 完成代码检查、单元/本地协议测试、隔离 Chromium 的页面与 GPU 冒烟检查，以及 .NET Framework 参考程序集编译。**Windows CI 尚未运行；安装、DWM 磨砂、混合 DPI 和真实 Agent 流程尚未验收。** 不将旧原型的运行记录作为本轮证据。详细记录见 [移植检查表](docs/WINDOWS-PORT-CHECKLIST.md)。版本身份仍为 `0.8.3-win.1.effects.2`，本轮未发布。
+本轮在 macOS 完成代码检查、单元/本地协议测试、隔离 Chromium 的页面与 GPU 冒烟检查，以及 .NET Framework 参考程序集编译。**[首次 Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39729392168) 已通过：27 项测试、页面与 GPU 检查、安装包构建、打包程序启动和大小检查。安装交互、DWM 磨砂、混合 DPI 和真实 Agent 流程仍待实机验收。** 不将旧原型的运行记录作为本轮证据。详细记录见 [移植检查表](docs/WINDOWS-PORT-CHECKLIST.md)。版本身份仍为 `0.8.3-win.1.effects.2`，本轮未发布。
 
 | 入口 | 用途 |
 | --- | --- |

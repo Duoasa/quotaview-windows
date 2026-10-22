@@ -11,9 +11,9 @@
 | 进度 | 同一 0–95% 运行进度，真实完成到 100%；计划调整不倒退 | 模型与边界测试 |
 | Claude | 新轮次不继承旧答案、中断和 token；过期观察显示未知 | 临时 transcript fixture |
 | 网络 | 更新和独立 Codex 额度进程使用统一代理配置 | 本地 HTTP CONNECT / SOCKS5 / PAC 路由测试 |
-| 辅助程序 | Framework 4.8 小 EXE 替代 Node SEA；user32 替代常驻 PowerShell | C#5 / net48 参考程序集编译成功；Windows 协议测试已配置 |
+| 辅助程序 | Framework 4.8 小 EXE 替代 Node SEA；user32 替代常驻 PowerShell | C#5 / net48 参考程序集编译及 Windows 原生协议测试通过 |
 | 集成清理 | 只移除所属 Hook；恢复原状态栏；保留其他设置和备份 | 临时用户配置安装/重配/卸载测试 |
-| 打包 | 白名单、NSIS/portable、独立 helper、自检与大小报告 | 配置与脚本检查；Windows 打包未运行 |
+| 打包 | 白名单、NSIS/portable、独立 helper、自检与大小报告 | Windows CI 构建、打包启动与大小检查通过 |
 
 ## 本地证据
 
@@ -25,15 +25,25 @@
 - `pnpm run test:renderer`：island / capsule / settings 挂载；7 个设置分类遍历；球体和三种进度 shader 像素验证；实时预览选择、深浅色与减少动态更新；预览卸载检查通过。使用隔离 Chrome 与软件 WebGL，不代表 Windows GPU 性能。
 - 辅助程序使用临时 .NET SDK 与 net48 参考程序集、C#5 编译检查，零错误、零警告。没有在 macOS 执行 Windows helper。
 
-## Windows CI 待运行
+## Windows CI 已通过
 
-已添加 `.github/workflows/windows.yml`，触发方式包括 push、pull_request 和手动运行。以下为推送前的检查计划；CI 实际结果以对应提交的 GitHub Actions 记录为准。
+已添加 `.github/workflows/windows.yml`，触发方式包括 push、pull_request 和手动运行。代码提交 `aa2d322` 的 [Windows CI](https://github.com/Duoasa/quotaview-windows/actions/runs/39729392168) 已通过以下步骤：27 项测试全部通过、无跳过。后续提交仅更新验证文档；实际结果以对应提交的 GitHub Actions 记录为准。
 
 1. 锁文件依赖安装与 Framework 系统编译器构建。
 2. 全部 JS 测试及 5 项 Windows helper 测试：协议最小字段、审批相关性、超时不批准、原命令/Unicode 转发。
 3. Chrome 页面/GPU 冒烟与打包 Electron 的独立用户目录启动。
 4. 未签名 NSIS 与便携包构建。
 5. `size-report.json`、`packaged-smoke.json`、helper 清单与 EXE 上传为 CI artifact，不创建 Release。
+
+首次 Windows CI 实测（字节数来自 `size-report.json`）：
+
+| 产物 | 字节 | 大小 |
+| --- | ---: | ---: |
+| NSIS 安装包 | 119440759 | 113.9 MiB |
+| 便携包 | 119120904 | 113.6 MiB |
+| 展开应用 | 400947945 | 382.4 MiB |
+| app.asar | 15052940 | 14.4 MiB |
+| 原生辅助程序 | 20480 | 20 KiB |
 
 ## 实机验收待办
 
