@@ -18,12 +18,15 @@ function rows(name){const section=profileText.match(new RegExp(name+' = new floa
 if(seed.length!==128)throw Error('Unexpected source uniform layout');
 const shader=name=>fs.readFileSync(path.join(root,'Prototypes/EffectsLab/shaders',name),'utf8').replace('#version 330 compatibility','#version 300 es\nprecision highp float;\nprecision highp int;');
 const assets={seed,orb:rows('Orb'),quantum:rows('Quantum'),orbShader:shader('orb.frag'),quantumShader:shader('quantum.frag'),borderShader:shader('border.frag'),vertex:'#version 300 es\nprecision highp float;\nout vec2 uv;\nvoid main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.0-1.0,0,1);uv=vec2(p.x,1.0-p.y);}'};
+assets.smoke=require('./src/smoke-profiles.json');
+assets.progressShader=fs.readFileSync(path.join(__dirname,'src/progress.frag'),'utf8');
+files.set('dist/renderer/shared/task-state.js',fs.readFileSync(path.join(root,'windows/shared/task-state.js')));
 const generated='/* Generated from the accepted EffectsLab; MIT (c) 2026 Duoasa. */\n(function(r){const a='+JSON.stringify(assets)+';if(typeof module==="object"&&module.exports)module.exports=a;else r.QVEffectAssets=a;})(globalThis);\n';
 fs.writeFileSync(path.join(__dirname,'src/assets.js'),generated);
 for(const name of ['assets.js','model.js','runtime.js','effects.css'])files.set('dist/renderer/effects/'+name,fs.readFileSync(path.join(__dirname,'src',name)));
 let html=text('dist/renderer/index.html');
 html=patch(html,'</head>','<link rel="stylesheet" href="./effects/effects.css"></head>');
-html=patch(html,'<script src="./app.js"></script>','<script src="./effects/assets.js"></script><script src="./effects/model.js"></script><script src="./effects/runtime.js"></script><script src="./app.js"></script>');
+html=patch(html,'<script src="./app.js"></script>','<script src="./shared/task-state.js"></script><script src="./effects/assets.js"></script><script src="./effects/model.js"></script><script src="./effects/runtime.js"></script><script src="./app.js"></script>');
 files.set('dist/renderer/index.html',Buffer.from(html));
 let js=text('dist/renderer/app.js');
 const start=js.indexOf('function ho('),end=js.indexOf('function Cr(',start);
@@ -64,7 +67,7 @@ fs.mkdirSync(output,{recursive:true});fs.cpSync(input,output,{recursive:true,for
 const target=path.join(output,'resources/app.asar'),temp=target+'.building';
 const fd=fs.openSync(temp,'w');try{fs.writeSync(fd,head);for(const bytes of files.values())fs.writeSync(fd,bytes);}finally{fs.closeSync(fd);}
 fs.renameSync(temp,target);
-const changed=['dist/renderer/index.html','dist/renderer/app.js','src/core/settings.cjs','src/core/platform.cjs','src/main.cjs','package.json',...['assets.js','model.js','runtime.js','effects.css'].map(n=>'dist/renderer/effects/'+n)];
+const changed=['dist/renderer/shared/task-state.js','dist/renderer/index.html','dist/renderer/app.js','src/core/settings.cjs','src/core/platform.cjs','src/main.cjs','package.json',...['assets.js','model.js','runtime.js','effects.css'].map(n=>'dist/renderer/effects/'+n)];
 const manifest={version:pkg.version,baseAsarSHA256:hash(raw),asarSHA256:hash(fs.readFileSync(target)),baseline:'dot 0.8.3-win.1',effects:'accepted Prototypes/EffectsLab',changes:changed.map(file=>({file,sha256:hash(files.get(file))}))};
 fs.writeFileSync(path.join(output,'effects-build-manifest.json'),JSON.stringify(manifest,null,2));
 console.log(JSON.stringify({output,version:pkg.version,changed:changed.length,files:files.size}));

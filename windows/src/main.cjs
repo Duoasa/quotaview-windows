@@ -18,6 +18,41 @@ if (codexHookIndex >= 0) {
     () => process.exit(0),
     () => process.exit(0),
   );
+} else if (process.argv.includes("--cleanup-integrations")) {
+  const { app } = require("electron");
+  const path = require("node:path");
+  app.setName("QuotaView Windows");
+  if (!app.requestSingleInstanceLock()) app.exit(1);
+  else
+    app
+      .whenReady()
+      .then(async () => {
+        const { SettingsStore } = require("./core/settings.cjs");
+        const store = new SettingsStore(app.getPath("userData")),
+          settings = store.load();
+        const result = await require("./core/cleanup.cjs").cleanupIntegrations({
+          dataDir: app.getPath("userData"),
+          settings,
+          packaged: app.isPackaged,
+          executable: app.isPackaged
+            ? require("./core/helper-runtime.cjs").materializeHelper(
+                process.resourcesPath,
+                app.getPath("userData"),
+              )
+            : process.execPath,
+          hookPath: path.join(__dirname, "core/hook.cjs"),
+        });
+        if (result.ok) {
+          store.update({
+            providers: { codex: false, claude: false, dsh: false, kimi: false },
+            codexActivityHooks: false,
+            startAtLogin: false,
+          });
+          app.setLoginItemSettings({ openAtLogin: false });
+        }
+        app.exit(result.ok ? 0 : 1);
+      })
+      .catch(() => app.exit(1));
 } else {
   runApplication();
 }
@@ -41,9 +76,14 @@ function runApplication() {
     path = require("node:path"),
     os = require("node:os"),
     crypto = require("node:crypto");
-  const { SettingsStore } = require("./core/settings.cjs");
+  const { QuotaProxy, proxyEnvironment } = require("./core/proxy.cjs");
+  const quotaProxy = new QuotaProxy((url) =>
+    session.defaultSession.resolveProxy(url),
+  );
+  const { SettingsStore, cleanSettings } = require("./core/settings.cjs");
   const { DismissedTasks } = require("./core/task-history.cjs");
   const { selectRelease } = require("./core/updates.cjs");
+  const { roundedRegion, materialFor } = require("./core/window-material.cjs");
   const { fileURLToPath } = require("node:url");
   const {
     ForegroundMonitor,
@@ -168,30 +208,52 @@ function runApplication() {
       },
     });
     secureWindow(win);
-    windowLoads.set(view, win.loadFile(HTML, { query: { view, effectsSmoke: SMOKE ? "1" : "0" } }));
+    windowLoads.set(
+      view,
+      win.loadFile(HTML, { query: { view, effectsSmoke: SMOKE ? "1" : "0" } }),
+    );
     win.once("ready-to-show", () => {
       if (!SMOKE) win.showInactive();
     });
     return win;
   }
   function material() {
-    for (const win of [island, capsule])
+    if (nativeTheme.themeSource !== settings.theme)
+      nativeTheme.themeSource = settings.theme;
+    for (const win of [island, capsule, preferences])
       if (win && !win.isDestroyed()) {
-        win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
+        if (win !== preferences)
+          win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
+        const value = materialFor({
+          platform: process.platform,
+          release: os.release(),
+          enabled: settings.material === "glass",
+          transparency: nativeTheme.prefersReducedTransparency !== true,
+          highContrast: nativeTheme.shouldUseHighContrastColors,
+          regionReady: !!win.qvRegion,
+          settings: win === preferences,
+        });
         if (
           process.platform === "win32" &&
           typeof win.setBackgroundMaterial === "function"
         ) {
           try {
-            win.setBackgroundMaterial(
-              "none",
-            );
-          } catch {}
+            win.setBackgroundMaterial(value);
+            win.qvMaterial = value;
+          } catch {
+            win.qvMaterial = "none";
+          }
         }
+        win.setBackgroundColor(
+          win === preferences
+            ? win.qvMaterial !== "mica"
+              ? nativeTheme.shouldUseDarkColors
+                ? "#202020"
+                : "#f3f3f3"
+              : "#00000000"
+            : "#00000000",
+        );
       }
-    for (const win of [island, capsule])
-      if (win && !win.isDestroyed()) win.setBackgroundColor("#00000000");
-    nativeTheme.themeSource = settings.theme;
   }
   function reposition(height) {
     if (!island || island.isDestroyed()) return;
@@ -201,7 +263,16 @@ function runApplication() {
         d,
         expanded ? settings.islandWidth : 270,
         expanded
-          ? Math.min(height || Math.min(island.getBounds().height < 180 ? 570 : island.getBounds().height, 800), d.workArea.height - (settings.showCapsule ? 112 : 16))
+          ? Math.min(
+              height ||
+                Math.min(
+                  island.getBounds().height < 180
+                    ? 570
+                    : island.getBounds().height,
+                  800,
+                ),
+              d.workArea.height - (settings.showCapsule ? 112 : 16),
+            )
           : 66,
       ),
     );
@@ -265,16 +336,14 @@ function runApplication() {
         kimi: { enabled: settings.providers.kimi, ...(b.states?.kimi || {}) },
       },
       settings,
-      displays: screen
-        .getAllDisplays()
-        .map((d) => ({
-          id: String(d.id),
-          name: d.label || `Display ${d.id}`,
-          primary: d.id === screen.getPrimaryDisplay().id,
-          width: d.bounds.width,
-          height: d.bounds.height,
-          scaleFactor: d.scaleFactor,
-        })),
+      displays: screen.getAllDisplays().map((d) => ({
+        id: String(d.id),
+        name: d.label || `Display ${d.id}`,
+        primary: d.id === screen.getPrimaryDisplay().id,
+        width: d.bounds.width,
+        height: d.bounds.height,
+        scaleFactor: d.scaleFactor,
+      })),
       version: app.getVersion(),
       locale: locale(),
       update,
@@ -285,6 +354,9 @@ function runApplication() {
           process.platform === "win32" &&
           Number(os.release().split(".")[2]) >= 22621,
         activeWindowTracking: foreground.available,
+        nativeBackdrop: island?.qvMaterial === "acrylic",
+        capsuleBackdrop: capsule?.qvMaterial === "acrylic",
+        settingsBackdrop: preferences?.qvMaterial === "mica",
       },
       warning: store.error,
     };
@@ -312,7 +384,8 @@ function runApplication() {
       if (
         previous &&
         previous !== t.status &&
-        terminal && t.verified !== false &&
+        terminal &&
+        t.verified !== false &&
         settings.notifications &&
         settings.completionNotifications &&
         Notification.isSupported()
@@ -331,7 +404,10 @@ function runApplication() {
       if (previous !== t.status && settings.autoExpand) {
         if (
           (t.status === "waiting" && settings.autoExpandOnApproval) ||
-          (previous && terminal && t.verified !== false && settings.autoExpandOnComplete) ||
+          (previous &&
+            terminal &&
+            t.verified !== false &&
+            settings.autoExpandOnComplete) ||
           (!previous && !terminal && settings.autoExpandOnStart)
         ) {
           setExpanded(true, t.status);
@@ -340,7 +416,14 @@ function runApplication() {
             ? settings.compactDelaySeconds
             : settings.collapseDelaySeconds;
           if (t.status !== "waiting" && delay > 0)
-            collapseTimer = setTimeout(() => { if (!pinned && !hovered && !snapshot().tasks.some(task => task.status === "waiting")) setExpanded(false); }, delay * 1000);
+            collapseTimer = setTimeout(() => {
+              if (
+                !pinned &&
+                !hovered &&
+                !snapshot().tasks.some((task) => task.status === "waiting")
+              )
+                setExpanded(false);
+            }, delay * 1000);
         }
       }
       oldTaskStates.set(t.id, t.status);
@@ -376,14 +459,31 @@ function runApplication() {
     s?.on?.("change", notificationsAndExpansion);
     s?.on?.("error", () => publish());
   }
-  async function createServices(codexOnly = false) {
+  let serviceOperation = Promise.resolve();
+  function createServices(codexOnly = false) {
+    serviceOperation = serviceOperation
+      .catch(() => {})
+      .then(() => createServicesNow(codexOnly));
+    return serviceOperation;
+  }
+  async function createServicesNow(codexOnly = false) {
     const rev = ++backendRevision;
     await codex?.stop?.();
     if (!codexOnly) await integrations?.stop?.();
     if (rev !== backendRevision) return;
+    const proxyURL = await quotaProxy.start(
+      settings.providers.codex ? settings.proxy : { mode: "direct" },
+    );
+    if (rev !== backendRevision) return;
     codex = new CodexService({
+      env: proxyEnvironment(process.env, proxyURL),
       dataDir: app.getPath("userData"),
-      hookExecutable: app.isPackaged ? require("./core/helper-runtime.cjs").materializeHelper(process.resourcesPath, app.getPath("userData")) : process.execPath,
+      hookExecutable: app.isPackaged
+        ? require("./core/helper-runtime.cjs").materializeHelper(
+            process.resourcesPath,
+            app.getPath("userData"),
+          )
+        : process.execPath,
       packaged: app.isPackaged,
       electronMainPath: app.isPackaged
         ? undefined
@@ -393,6 +493,7 @@ function runApplication() {
       home: settings.codexHome || undefined,
       executable: settings.codexPath || undefined,
       pollInterval: 1500,
+      externalQuotaRefresh: true,
       version: app.getVersion(),
       enabled: settings.providers.codex,
     });
@@ -400,7 +501,12 @@ function runApplication() {
       integrations = new IntegrationService({
         dataDir: app.getPath("userData"),
         settings,
-        executable: app.isPackaged ? require("./core/helper-runtime.cjs").materializeHelper(process.resourcesPath, app.getPath("userData")) : process.execPath,
+        executable: app.isPackaged
+          ? require("./core/helper-runtime.cjs").materializeHelper(
+              process.resourcesPath,
+              app.getPath("userData"),
+            )
+          : process.execPath,
         hookPath: path.join(__dirname, "core", "hook.cjs"),
         packaged: app.isPackaged,
         electronMainPath: app.isPackaged
@@ -438,7 +544,10 @@ function runApplication() {
       let previousDisplay = display().id;
       pointerTimer = setInterval(() => {
         const nextDisplay = display().id;
-        if (nextDisplay !== previousDisplay) { previousDisplay = nextDisplay; reposition(); }
+        if (nextDisplay !== previousDisplay) {
+          previousDisplay = nextDisplay;
+          reposition();
+        }
       }, 1500);
     }
     clearInterval(updateTimer);
@@ -451,14 +560,24 @@ function runApplication() {
     if (settings.display === "active" && !SMOKE) foreground.start();
     else foreground.stop();
   }
-  async function applySettings(patch) {
+  let settingsOperation = Promise.resolve();
+  function applySettings(patch) {
+    settingsOperation = settingsOperation
+      .catch(() => {})
+      .then(() => applySettingsNow(patch));
+    return settingsOperation;
+  }
+  async function applySettingsNow(patch) {
     const before = settings;
-    if (
-      patch?.proxy?.mode === "manual" &&
-      !patch.proxy.url &&
-      !settings.proxy.url
-    )
-      throw Error("A proxy URL is required for manual proxy mode.");
+    const candidate = cleanSettings({
+      ...settings,
+      ...patch,
+      proxy: { ...settings.proxy, ...patch?.proxy },
+    });
+    if (candidate.proxy.mode === "manual" && !candidate.proxy.url)
+      throw Error(
+        "A valid HTTP(S) or SOCKS proxy URL without credentials is required.",
+      );
     settings = store.update(patch);
     if (before.startAtLogin !== settings.startAtLogin)
       app.setLoginItemSettings({
@@ -481,7 +600,10 @@ function runApplication() {
     }
     configureTimers();
     reposition();
-    if (["codexHome", "codexPath"].some((k) => before[k] !== settings[k]))
+    if (
+      ["codexHome", "codexPath"].some((k) => before[k] !== settings[k]) ||
+      JSON.stringify(before.proxy) !== JSON.stringify(settings.proxy)
+    )
       await createServices(true);
     if (before.claudeHome !== settings.claudeHome)
       await integrations?.refresh?.();
@@ -495,6 +617,7 @@ function runApplication() {
       return;
     }
     preferences = createWindow("settings", 920, 690);
+    material();
     preferences.on("close", (event) => {
       if (!quitting) {
         event.preventDefault();
@@ -542,7 +665,8 @@ function runApplication() {
   function trusted(event) {
     const w = BrowserWindow.fromWebContents(event.sender);
     if (
-      !w || ![island, capsule, preferences].includes(w) ||
+      !w ||
+      ![island, capsule, preferences].includes(w) ||
       event.senderFrame !== event.sender.mainFrame
     )
       throw Error("Untrusted IPC sender");
@@ -550,7 +674,12 @@ function runApplication() {
     if (u.protocol !== "file:") throw Error("Untrusted IPC origin");
     const originPath = path.resolve(fileURLToPath(u));
     const expectedPath = path.resolve(HTML);
-    if ((process.platform === "win32" ? originPath.toLowerCase() !== expectedPath.toLowerCase() : originPath !== expectedPath)) throw Error("Untrusted IPC document");
+    if (
+      process.platform === "win32"
+        ? originPath.toLowerCase() !== expectedPath.toLowerCase()
+        : originPath !== expectedPath
+    )
+      throw Error("Untrusted IPC document");
   }
   function handle(name, fn) {
     ipcMain.handle("qv:" + name, async (event, ...args) => {
@@ -633,8 +762,7 @@ function runApplication() {
           });
         }
         settings = store.update({ providers: { codex: enabled } });
-        if (enabled) await codex.start();
-        else await codex.stop();
+        await createServices(true);
       } else {
         await integrations.configure(provider, enabled, {
           ...(provider === "claude"
@@ -683,16 +811,36 @@ function runApplication() {
     handle("openSettings", () => openSettings());
     handle("resize", (_, r) => {
       if (typeof r?.expanded !== "boolean") throw Error("Invalid resize");
-      if (typeof r.pinned === "boolean") { pinned = r.pinned; if (pinned) clearTimeout(collapseTimer); }
+      if (typeof r.pinned === "boolean") {
+        pinned = r.pinned;
+        if (pinned) clearTimeout(collapseTimer);
+      }
       if (typeof r.hovered === "boolean") hovered = r.hovered;
       if (expanded !== r.expanded) setExpanded(r.expanded);
-      if (Number.isFinite(r.height)) reposition(
-        Number.isFinite(r.height)
-          ? Math.max(180, Math.min(r.height, 900))
-          : undefined,
-      );
+      if (Number.isFinite(r.height))
+        reposition(
+          Number.isFinite(r.height)
+            ? Math.max(180, Math.min(r.height, 900))
+            : undefined,
+        );
       publish();
       return { expanded };
+    });
+    handle("region", (event, r) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (![island, capsule].includes(win))
+        throw Error("This window has no overlay region");
+      if (process.platform !== "win32") return { supported: false };
+      try {
+        win.setShape(roundedRegion(r, win.getBounds()));
+        win.qvRegion = true;
+      } catch {
+        win.qvRegion = false;
+      }
+      const before = win.qvMaterial;
+      material();
+      if (before !== win.qvMaterial) publish();
+      return { supported: win.qvRegion, material: win.qvMaterial };
     });
     handle("external", (_, url) => shell.openExternal(safeExternal(url)));
     handle("path", async (_, p) => {
@@ -708,6 +856,13 @@ function runApplication() {
     handle("minimize", (event) =>
       BrowserWindow.fromWebContents(event.sender)?.minimize(),
     );
+    handle("maximize", (event) => {
+      const win = BrowserWindow.fromWebContents(event.sender);
+      if (win === preferences) {
+        if (win.isMaximized()) win.unmaximize();
+        else win.maximize();
+      }
+    });
     handle("showWindow", (_, name) => {
       if (name === "close-settings") preferences?.hide();
       else if (name === "settings") openSettings();
@@ -773,10 +928,22 @@ function runApplication() {
       return result.filePath;
     });
   }
-  foreground.on("unavailable", () => { activeDisplayId = undefined; reposition(); publish(); });
+  foreground.on("unavailable", () => {
+    activeDisplayId = undefined;
+    reposition();
+    publish();
+  });
   foreground.on("rect", (rect) => {
-    const bounds = { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-    const dipBounds = process.platform === "win32" ? screen.screenToDipRect(null, bounds) : bounds;
+    const bounds = {
+      x: rect.x,
+      y: rect.y,
+      width: rect.width,
+      height: rect.height,
+    };
+    const dipBounds =
+      process.platform === "win32"
+        ? screen.screenToDipRect(null, bounds)
+        : bounds;
     const d = screen.getDisplayMatching(dipBounds);
     if (activeDisplayId !== d.id) {
       activeDisplayId = d.id;
@@ -798,6 +965,7 @@ function runApplication() {
     clearTimeout(collapseTimer);
     clearTimeout(hideTimer);
     foreground.stop();
+    void quotaProxy.stop();
     codex?.stop?.();
     integrations?.stop?.();
     tray?.destroy();
@@ -808,6 +976,12 @@ function runApplication() {
       store = new SettingsStore(app.getPath("userData"));
       dismissed = new DismissedTasks(app.getPath("userData"));
       settings = store.load();
+      foreground.executable = app.isPackaged
+        ? require("./core/helper-runtime.cjs").materializeHelper(
+            process.resourcesPath,
+            app.getPath("userData"),
+          )
+        : path.join(ROOT, "dist/helper/quotaview-hook.exe");
       await session.defaultSession.setProxy(
         settings.proxy.mode === "manual" && settings.proxy.url
           ? { mode: "fixed_servers", proxyRules: settings.proxy.url }
@@ -831,6 +1005,10 @@ function runApplication() {
       registerIPC();
       material();
       reposition();
+      nativeTheme.on("updated", () => {
+        material();
+        publish();
+      });
       screen.on("display-added", () => {
         reposition();
         publish();
@@ -866,13 +1044,21 @@ function runApplication() {
           if (!mounted) throw Error("Renderer root did not mount");
         }
         if (rendererErrors.length) throw Error(rendererErrors.join("; "));
-        const effects = await island.webContents.executeJavaScript("window.QVEffects.selfTest()");
+        const effects = await island.webContents.executeJavaScript(
+          "window.QVEffects.selfTest()",
+        );
         const topAligned = island.getBounds().y === display().bounds.y;
         if (!topAligned) throw Error("Island is not aligned to screen top");
         const evidence = {
           topAligned,
-          windowBackgrounds: [island, capsule].map(win => win.getBackgroundColor()),
+          windowBackgrounds: [island, capsule].map((win) =>
+            win.getBackgroundColor(),
+          ),
           effects,
+          windowRegions: [island, capsule].map((win) => !!win.qvRegion),
+          backdrops: [island, capsule, preferences].map(
+            (win) => win.qvMaterial || "none",
+          ),
           ok: true,
           version: app.getVersion(),
           platform: process.platform,

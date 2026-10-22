@@ -1,0 +1,56 @@
+name: Windows validation
+on:
+  push:
+    paths: ["windows/**", "ElectronEffects/**", ".github/workflows/windows.yml"]
+  pull_request:
+    paths: ["windows/**", "ElectronEffects/**", ".github/workflows/windows.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-x64:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: windows
+        shell: pwsh
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.19.0"
+      - run: npm install --global pnpm@11.25.0
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: pnpm run build:helper
+      - run: pnpm test
+      - run: pnpm run test:renderer
+      - name: Build unsigned portable and installer
+        run: pnpm run dist
+      - name: Packaged application smoke (isolated data, no agent connection)
+        run: |
+          $report = Join-Path $PWD 'release/packaged-smoke.json'
+          $exe = Join-Path $PWD 'release/win-unpacked/QuotaView Windows.exe'
+          $process = Start-Process -FilePath $exe -ArgumentList @('--smoke-test', "--smoke-report=$report", '--use-angle=swiftshader', '--enable-unsafe-swiftshader') -PassThru
+          if (-not $process.WaitForExit(60000)) { $process.Kill(); throw 'Packaged smoke timed out' }
+          if ($process.ExitCode -ne 0) { throw "Packaged smoke failed: $($process.ExitCode)" }
+          if (-not (Test-Path $report)) { throw 'Missing packaged smoke report' }
+          if (-not (Get-Content $report -Raw | ConvertFrom-Json).ok) { throw 'Packaged smoke report failed' }
+      - run: pnpm run size
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quotaview-windows-x64-unsigned
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            windows/release/*.exe
+            windows/release/*-report.json
+            windows/release/packaged-smoke.json
+            windows/dist/helper/helper-manifest.json
