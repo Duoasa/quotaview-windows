@@ -92,7 +92,18 @@ function runApplication() {
   } = require("./core/platform.cjs");
   const { CodexService } = require("./core/codex.cjs");
   const { IntegrationService } = require("./core/integrations.cjs");
+  const { displayState, needsAttention, attentionKey } = require("../shared/task-state.js");
   const SMOKE = process.argv.includes("--smoke-test");
+  const APPROVAL_TEST = process.argv.includes("--approval-test");
+  const APPROVAL_DEMO = APPROVAL_TEST || process.argv.includes("--approval-demo");
+  const approvalReport = process.argv.find(a => a.startsWith("--approval-report="))?.slice(18);
+  let approvalRoot;
+  if (APPROVAL_DEMO) {
+    const base = process.argv.find(a => a.startsWith("--approval-demo-dir="))?.slice(20) || path.join(os.tmpdir(), "quotaview-approval-demo");
+    fs.mkdirSync(base, { recursive: true });
+    approvalRoot = fs.mkdtempSync(path.join(base, "run-"));
+    app.setPath("userData", path.join(approvalRoot, "data"));
+  }
   const smokeReport = process.argv
     .find((a) => a.startsWith("--smoke-report="))
     ?.slice(15);
@@ -131,6 +142,7 @@ function runApplication() {
     lastSnapshot = null,
     update = { available: false, checking: false };
   let oldTaskStates = new Map(),
+    oldAttentionKeys = new Map(),
     notifyQuota = new Map(),
     publishTimer = null,
     backendRevision = 0;
@@ -337,15 +349,17 @@ function runApplication() {
   function notificationsAndExpansion() {
     const s = snapshot();
     for (const t of s.tasks) {
+      const state = displayState(t), attention = attentionKey(t);
+      const newAttention = attention && oldAttentionKeys.get(t.id) !== attention;
       const previous = oldTaskStates.get(t.id);
       const terminal = ["completed", "failed", "interrupted"].includes(
         t.status,
       );
-      if (previous !== t.status && !terminal && t.status !== "unknown")
+      if ((previous !== state || newAttention) && !terminal && state !== "unknown")
         island?.showInactive();
       if (
         previous &&
-        previous !== t.status &&
+        previous !== state &&
         terminal &&
         t.verified !== false &&
         settings.notifications &&
@@ -363,38 +377,40 @@ function runApplication() {
           silent: false,
         }).show();
       }
-      if (previous !== t.status && settings.autoExpand) {
+      if ((previous !== state || newAttention) && settings.autoExpand) {
         if (
-          t.status === "waiting" ||
+          needsAttention(t) ||
           (previous &&
             terminal &&
             t.verified !== false &&
             settings.autoExpandOnComplete) ||
           (!previous && !terminal)
         ) {
-          setExpanded(true, t.status);
+          setExpanded(true, needsAttention(t) ? "waiting" : state);
           if (collapseTimer) clearTimeout(collapseTimer);
           const delay = terminal
             ? settings.compactDelaySeconds
             : settings.collapseDelaySeconds;
-          if (t.status !== "waiting" && delay > 0)
+          if (!needsAttention(t) && delay > 0)
             collapseTimer = setTimeout(() => {
               if (
                 !pinned &&
                 !hovered &&
                 !snapshot().tasks.some(
-                  (task) => task.status === "waiting" || task.approval,
+                  needsAttention,
                 )
               )
                 setExpanded(false);
             }, delay * 1000);
         }
       }
-      oldTaskStates.set(t.id, t.status);
+      oldTaskStates.set(t.id, state);
+      oldAttentionKeys.set(t.id, attention);
     }
     if (oldTaskStates.size > 1024) {
       const ids = new Set(s.tasks.map((t) => t.id));
       oldTaskStates = new Map([...oldTaskStates].filter(([k]) => ids.has(k)));
+      oldAttentionKeys = new Map([...oldAttentionKeys].filter(([k]) => ids.has(k)));
     }
     for (const [provider, q] of Object.entries(s.quotas)) {
       if (!settings.notifications || !settings.lowQuotaNotifications || !q)
@@ -705,12 +721,14 @@ function runApplication() {
       return { ok: true };
     });
     handle("settings", (_, patch) => {
+      if (APPROVAL_DEMO) throw Error("模拟审批模式不修改应用设置。");
       if (patch?.providers)
         throw Error("Use Connections to enable or disable an integration.");
       return applySettings(patch);
     });
     handle("refresh", () => refresh());
     handle("configure", async (_, request) => {
+      if (APPROVAL_DEMO) throw Error("模拟审批模式不连接真实客户端。");
       const { provider, enabled, options } = request || {};
       if (
         !["codex", "claude", "dsh", "kimi"].includes(provider) ||
@@ -940,6 +958,7 @@ function runApplication() {
       store = new SettingsStore(app.getPath("userData"));
       dismissed = new DismissedTasks(app.getPath("userData"));
       settings = store.load();
+      if (APPROVAL_DEMO) settings = { ...cleanSettings({language:"zh",showCapsule:false,autoExpand:true,providers:{codex:false,claude:false,dsh:false,kimi:false}}), notifications:false };
       foreground.executable = app.isPackaged
         ? require("./core/helper-runtime.cjs").materializeHelper(
             process.resourcesPath,
@@ -985,6 +1004,25 @@ function runApplication() {
         reposition();
         publish();
       });
+      if (APPROVAL_DEMO) {
+        await Promise.all(windowLoads.values());
+        const demo = require("../tests/approval-demo.cjs");
+        const scenario = await demo.create({ root: approvalRoot, executable: foreground.executable, settings });
+        integrations = scenario.service;
+        codex = scenario.codexFixture.service;
+        bindService(integrations); bindService(codex);
+        app.on("before-quit", () => scenario.stop());
+        expanded = true; pinned = true;
+        buildTray(); publish();
+        island.showInactive(); capsule.hide();
+        if (APPROVAL_TEST) {
+          const report = await demo.verify({island, scenario, folder: approvalReport ? path.dirname(approvalReport) : approvalRoot});
+          if (approvalReport) fs.writeFileSync(approvalReport, JSON.stringify(report, null, 2));
+          scenario.stop();
+          app.exit(report.ok ? 0 : 1);
+        } else await demo.present({island, scenario, root: approvalRoot});
+        return;
+      }
       if (SMOKE) {
         preferences = createWindow("settings", 920, 690);
         await Promise.race([
@@ -1060,6 +1098,7 @@ function runApplication() {
     })
     .catch((error) => {
       console.error(error);
+      if (APPROVAL_TEST && approvalReport) fs.writeFileSync(approvalReport, JSON.stringify({ok:false,error:String(error.message)}));
       if (SMOKE && smokeReport)
         fs.writeFileSync(
           smokeReport,

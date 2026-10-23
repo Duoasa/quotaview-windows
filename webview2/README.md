@@ -47,3 +47,9 @@ WebView2 Runtime 官方安装入口：https://developer.microsoft.com/microsoft-
 已在 Windows / WebView2 上检查 150% DPI、带负坐标的副屏、顶部贴合和原生窗口裁剪。未配置的第三方客户端未在本机完成真实会话验收，现有协议由隔离测试覆盖。
 
 本轮界面调整：灵动岛与胶囊固定为深色纯色；任务卡片悬停时 Agent 图标替换为归档按钮。归档仅隐藏当前回合，保留原客户端会话；新回合会重新显示。Token 活动采用 53 周 × 7 行，每周与累计总量用向上填充的方格柱表示。
+
+## 隔离审批验证
+
+`-Action test` 还会运行 `--approval-test`：Claude 原生 Hook → 真实界面按钮 → 原生回执，覆盖允许、拒绝、取消、问题回答和过期请求；Codex 原生 Hook → 待确认 → 自动展开 → 工具结束清除。模拟项目及客户端配置位于独立目录，卡片中的命令不会执行。`webview2/build/approval-report.json` 保存结果。
+
+可执行文件加 `--approval-demo` 可手动体验 Claude 审批卡片，`--approval-demo-dir=<目录>` 指定项目根目录。正常模式不产生模拟请求。Codex 已配置活动 Hook 时显示真实 PermissionRequest，但批准操作仍需在 Codex 中完成。

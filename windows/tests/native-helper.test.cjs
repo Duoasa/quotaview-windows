@@ -100,7 +100,9 @@ test(
     const result = await run(
       ["--quotaview-codex-hook", "--configuration", file],
       JSON.stringify({
-        hook_event_name: "Stop",
+        hook_event_name: "PermissionRequest",
+        tool_name: "Bash",
+        tool_use_id: "tool-invocation",
         session_id: "session",
         turn_id: "turn",
         prompt: "private",
@@ -110,7 +112,9 @@ test(
     assert.equal(result.code, 0);
     assert.equal(result.out, "");
     assert.deepEqual(payload, {
-      event: "Stop",
+      event: "PermissionRequest",
+      toolName: "Bash",
+      toolUseId: "tool-invocation",
       sessionId: "session",
       turnId: "turn",
     });

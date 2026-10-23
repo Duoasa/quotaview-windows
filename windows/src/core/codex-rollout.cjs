@@ -372,6 +372,55 @@ class RolloutParser {
     this.disposition = null;
     this.maxInput = null;
     this.seen = new Set();
+    this.hookPermissions = new Map();
+    this.hookSequence = 0;
+  }
+
+  observeHook(event) {
+    const at = event.observedAt,
+      now = this.clock();
+    if (
+      event.sessionId !== this.threadId ||
+      !event.turnId ||
+      event.turnId !== this.turnId ||
+      !this.task ||
+      this.kind === "memory" ||
+      TERMINAL.has(this.task.status) ||
+      !Number.isFinite(at) ||
+      at < now - this.liveWindow ||
+      at > now + 30000 ||
+      at < (this.task.startedAt ?? 0)
+    )
+      return false;
+    if (["PreCompact", "PostCompact"].includes(event.event)) {
+      this.task.compacting = event.event === "PreCompact";
+      this.task.compactionSource = "authenticated-native-hook";
+    } else if (event.event === "PermissionRequest") {
+      if (this.hookPermissions.size >= 32) return false;
+      const key = event.toolUseId || String(++this.hookSequence);
+      this.hookPermissions.set(key, {
+        toolUseId: event.toolUseId,
+        toolName: event.toolName,
+        at,
+      });
+    } else if (event.event === "PostToolUse") {
+      // An invocation id is strongest. Older PermissionRequest schemas expose
+      // only the tool name: settle only a single unambiguous candidate.
+      const matches = [...this.hookPermissions].filter(
+        ([, pending]) =>
+          at >= pending.at &&
+          (pending.toolUseId
+            ? pending.toolUseId === event.toolUseId
+            : pending.toolName === event.toolName),
+      );
+      if (matches.length !== 1) return false;
+      this.hookPermissions.delete(matches[0][0]);
+    } else if (["Stop", "Interrupt", "SessionEnd"].includes(event.event)) {
+      this.hookPermissions.clear();
+    } else return false;
+    this.lastLiveAt = now;
+    this.task.updatedAt = Math.max(this.task.updatedAt ?? at, at);
+    return true;
   }
 
   updateMetadata(meta) {
@@ -447,6 +496,7 @@ class RolloutParser {
       )
         return false;
       this.turnId = p.turn_id;
+      this.hookPermissions.clear();
       this.turnBaseline = this.cumulative;
       this.hasDirectUsage = false;
       this.firstUsageInTurn = true;
@@ -539,6 +589,7 @@ class RolloutParser {
         this.task.completedAt = at;
         this.task.live = false;
         this.task.approval = undefined;
+        this.hookPermissions.clear();
         if (
           this.kind !== "memory" &&
           p.type === "task_complete" &&
@@ -759,6 +810,23 @@ class RolloutParser {
     ) {
       task.status = "unknown";
       task.live = false;
+    }
+    if (
+      !TERMINAL.has(task.status) &&
+      this.hookPermissions.size &&
+      this.lastLiveAt &&
+      now - this.lastLiveAt <= staleAfter
+    ) {
+      task.status = "waiting";
+      task.live = true;
+      task.approval ||= {
+        id:
+          "codex-hook-observed:" +
+          hash(this.threadId + ":" + this.turnId + ":" + this.hookSequence),
+        kind: "permission",
+        canRespond: false,
+        source: "authenticated-codex-hook",
+      };
     }
     if (task.tokens) {
       task.estimatedCost = estimateCost(task.model, task.tokens, this.maxInput);

@@ -55,7 +55,7 @@ class CodexService extends EventEmitter {
     this.rpc =
       options.rpcClient || new CodexAppServer({ ...options, home: this.home });
     this.hooks = new CodexHooks({ ...options, home: this.home });
-    this.pendingHooks = new Map();
+    this.pendingHooks = [];
     this.cursors = new Map();
     this.enabled = false;
     this.generation = 0;
@@ -136,7 +136,7 @@ class CodexService extends EventEmitter {
     clearInterval(this.quotaTimer);
     clearTimeout(this.hookTimer);
     this.hookTimer = null;
-    this.pendingHooks.clear();
+    this.pendingHooks.length = 0;
     this.activityTimer = null;
     this.quotaTimer = null;
     this.rpc.stop();
@@ -180,36 +180,19 @@ class CodexService extends EventEmitter {
 
   observeHook(event) {
     if (!this.enabled || !this.hooks.enabled) return;
-    // Coalesce bursts without creating an unbounded promise/listener backlog.
-    if (this.pendingHooks.size < 128 || this.pendingHooks.has(event.sessionId))
-      this.pendingHooks.set(event.sessionId, event);
+    // Preserve event order so later activity cannot overwrite a permission event.
+    if (this.pendingHooks.length >= 256) return;
+    this.pendingHooks.push(event);
     if (this.hookTimer) return;
     const generation = this.generation;
     this.hookTimer = setTimeout(async () => {
       this.hookTimer = null;
-      const events = [...this.pendingHooks.values()];
-      this.pendingHooks.clear();
+      const events = this.pendingHooks.splice(0);
       await this.refreshActivity();
       if (!this.enabled || generation !== this.generation) return;
-      for (const observation of events) {
-        if (
-          !["PreCompact", "PostCompact"].includes(observation.event) ||
-          !observation.turnId
-        )
-          continue;
-        for (const cursor of this.cursors.values()) {
-          const parser = cursor.parser;
-          if (
-            parser.threadId !== observation.sessionId ||
-            parser.turnId !== observation.turnId ||
-            !parser.task ||
-            rollout.TERMINAL.has(parser.task.status)
-          )
-            continue;
-          parser.task.compacting = observation.event === "PreCompact";
-          parser.task.compactionSource = "authenticated-native-hook";
-        }
-      }
+      for (const observation of events)
+        for (const cursor of this.cursors.values())
+          cursor.parser.observeHook(observation);
       this.publish();
     }, 50);
     this.hookTimer.unref?.();

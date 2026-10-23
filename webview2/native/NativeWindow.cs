@@ -163,9 +163,12 @@ internal sealed class NativeWindow : Form
     {
         using var stream = File.Create(Path.Combine(folder, "view-" + id + ".png"));
         await web.CoreWebView2.CapturePreviewAsync(CoreWebView2CapturePreviewImageFormat.Png, stream);
+        using var graphics = CreateGraphics();
+        var clip = Region?.GetBounds(graphics) ?? ClientRectangle;
         return Node(new
         {
             id,
+            clipBounds = new { x = clip.X, y = clip.Y, width = clip.Width, height = clip.Height },
             visible = Visible,
             bounds = new
             {

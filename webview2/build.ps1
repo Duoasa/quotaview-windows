@@ -15,7 +15,7 @@ try {
     $exe=Join-Path $PSScriptRoot 'bin/Release/net10.0-windows/QuotaView.Native.exe'
     if($Action -eq 'run'){Start-Process -FilePath $exe -WindowStyle Hidden}
     if($Action -eq 'test'){
-        foreach($kind in @('smoke','adapter')){
+        foreach($kind in @('smoke','adapter','approval')){
             $report=Join-Path $PSScriptRoot ('build/'+$kind+'-report.json')
             $started=Get-Date
             $process=Start-Process -FilePath $exe -ArgumentList @('--'+$kind+'-test',('"--'+$kind+'-report='+$report+'"')) -WindowStyle Hidden -PassThru

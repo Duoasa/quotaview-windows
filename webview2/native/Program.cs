@@ -21,7 +21,7 @@ internal static class Program
             return;
         }
         ApplicationConfiguration.Initialize();
-        bool isolated = args.Contains("--smoke-test") || args.Contains("--adapter-test");
+        bool isolated = args.Contains("--smoke-test") || args.Contains("--adapter-test") || args.Contains("--approval-test") || args.Contains("--approval-demo");
         using var mutex = new Mutex(true, isolated ? null : @"Local\QuotaView.WebView2", out bool first);
         if (!first)
         {

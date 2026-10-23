@@ -13,7 +13,10 @@ function selectPayload(input) {
   if (!object(input) || !EVENTS.has(input.hook_event_name) || !id(input.session_id)) return null;
   const output = { event: input.hook_event_name, sessionId: input.session_id };
   if (input.turn_id != null) { if (!id(input.turn_id)) return null; output.turnId = input.turn_id; }
-  // No cwd, prompt, tool arguments, tool output, reason or answers are forwarded.
+  for (const [inputKey, outputKey] of [["tool_use_id", "toolUseId"], ["tool_name", "toolName"]]) {
+    if (input[inputKey] != null) { if (!id(input[inputKey])) return null; output[outputKey] = input[inputKey]; }
+  }
+  // Only tool identity is included; no cwd, prompt, arguments, output or answers.
   return output;
 }
 async function readRoute(file) {

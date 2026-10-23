@@ -137,6 +137,85 @@ module.exports = async function verifyUI({
     `document.querySelector('.island-window').dispatchEvent(new MouseEvent('mouseout',{bubbles:true,relatedTarget:document.body}));await wait(550);check(document.querySelector('.island-window.expanded'),'Pending request was collapsed');return true;`,
   );
   await capture(island, "tasks");
+  const attentionFixture = {
+    ...fixture,
+    settings: { ...fixture.settings, autoExpand: true },
+    ui: { expanded: false, pinned: false },
+    tasks: [
+      {
+        ...fixture.tasks[1],
+        id: "qa-async-approval",
+        status: "working",
+        tool: "wait",
+        approval: {
+          id: "question-1",
+          kind: "question",
+          asynchronous: true,
+          canRespond: false,
+          title: "选择模拟测试方案",
+          questions: [
+            {
+              id: "test",
+              question: "选择模拟测试方案",
+              options: [{ label: "快速检查" }, { label: "完整检查" }],
+            },
+          ],
+        },
+      },
+      fixture.tasks[0],
+    ],
+  };
+  await inject(island, attentionFixture);
+  const attention = await run(
+    island,
+    `
+    await wait(450);
+    const card=document.querySelector('[data-task-id="qa-async-approval"]');
+    check(document.querySelector('.island-window.expanded'),'Pending async question did not expand');
+    check(card.classList.contains('status-waiting')&&card.querySelector('.task-status').textContent==='待确认','Card status disagrees with pending count');
+    check(card.querySelector('.activity-text').textContent==='等待你的回答','Pending card still shows wait tool');
+    check(card.dataset.focused==='true'&&card.getAttribute('aria-expanded')==='true','Pending task was not selected and focused');
+    check(document.querySelector('.approval-panel')?.textContent.includes('选择模拟测试方案'),'Approval panel did not open automatically');
+    check(document.querySelector('.header-status').textContent.includes('1'),'Pending badge disagrees');
+    check(document.querySelector('.task-detail.status-waiting'),'Detail status disagrees');
+    check(window.QVEffects.displayState({status:'working',approval:{id:'q',kind:'question'}})==='waiting','GPU effect state disagrees');
+    document.querySelector('[aria-label="收起"]').click();await wait(250);
+    return {asyncQuestion:true,cardState:true,details:true,focus:true};
+  `,
+  );
+  await inject(island, attentionFixture);
+  await run(
+    island,
+    "check(document.querySelector('.island-window.collapsed'),'Same pending request reopened after manual collapse');return true;",
+  );
+  const nextAttention = {
+    ...attentionFixture,
+    tasks: [
+      {
+        ...attentionFixture.tasks[0],
+        approval: { ...attentionFixture.tasks[0].approval, id: "question-2" },
+      },
+      fixture.tasks[0],
+    ],
+  };
+  await inject(island, nextAttention);
+  await run(
+    island,
+    "await wait(350);check(document.querySelector('.island-window.expanded .approval-panel'),'New request did not reopen detail');return true;",
+  );
+  await capture(island, "approval-auto-open");
+  await inject(island, {
+    ...nextAttention,
+    tasks: [
+      { ...attentionFixture.tasks[0], approval: undefined },
+      fixture.tasks[0],
+    ],
+  });
+  await run(
+    island,
+    `check(document.querySelector('[data-task-id="qa-async-approval"]').classList.contains('status-working'),'Settled request stayed yellow');check(!document.querySelector('.approval-panel'),'Settled approval panel remains');check(!document.querySelector('.header-status.warning'),'Settled count remains');return true;`,
+  );
+  await inject(island, { ...fixture, ui: { expanded: true, pinned: false }, tasks: [{...fixture.tasks[1],id:"qa-wait",status:"waiting",title:"发布前的最终检查"},...fixture.tasks] });
   const motion = await run(
     island,
     `
@@ -239,6 +318,39 @@ module.exports = async function verifyUI({
   `,
   );
   await capture(island, "usage");
+
+  const claudeLayout = await run(
+    island,
+    `
+    const tabs=[...document.querySelectorAll('.usage-provider-tabs button')];
+    tabs.find(el=>el.textContent.includes('Claude')).click();await wait(650);
+    const shell=document.querySelector('.island-shell').getBoundingClientRect();
+    const footer=document.querySelector('.island-footer').getBoundingClientRect();
+    const body=document.querySelector('.island-body');
+    check(footer.bottom<=innerHeight+1,'Claude footer extends below viewport');
+    body.scrollTop=body.scrollHeight;await wait(80);
+    const note=document.querySelector('.usage-dashboard > .chart-note').getBoundingClientRect();
+    check(note.bottom<=body.getBoundingClientRect().bottom+1,'Claude source note is not reachable');
+    return {shellBottom:shell.bottom,footerBottom:footer.bottom,dpi:devicePixelRatio,viewport:innerHeight,scrollable:body.scrollHeight>body.clientHeight};
+  `,
+  );
+  const claudeNative = await capture(island, "usage-claude");
+  if (claudeNative?.clipBounds) {
+    const clipBottom =
+      claudeNative.clipBounds.y + claudeNative.clipBounds.height;
+    const contentBottom = claudeLayout.shellBottom * claudeLayout.dpi;
+    if (clipBottom + 2 < contentBottom)
+      throw Error(
+        "Claude content clipped by stale native region: " +
+          JSON.stringify({ clipBottom, contentBottom, ...claudeLayout }),
+      );
+    claudeLayout.nativeRegion = true;
+  }
+  await run(
+    island,
+    "document.querySelectorAll('.usage-provider-tabs button')[0].click();await wait(450);return true;",
+  );
+
   await run(
     island,
     "document.querySelectorAll(\'.activity-mode button\')[1].click();await wait(50);return true;",
@@ -361,12 +473,14 @@ module.exports = async function verifyUI({
     throw Error("Window did not return to Normal state");
   return {
     hover,
+    attention,
     motion,
     focus,
     solid,
     nativeMotion: motionEvidence?.motion,
     nativeBoundsCalls: frames.length,
     usage,
+    claudeLayout,
     settings,
     native,
   };

@@ -76,7 +76,11 @@ static class QuotaViewHelper {
         if (provider == "codex") {
             if (!Id(sid) || Array.IndexOf(new[] {"SessionStart","SessionEnd","UserPromptSubmit","PreToolUse","PermissionRequest","PostToolUse","PreCompact","PostCompact","SubagentStart","SubagentStop","Interrupt","Stop"}, ev) < 0) return null;
             var p = new Dictionary<string, object> { {"event",ev}, {"sessionId",sid} };
-            if (Get(input, "turn_id") != null) { if (!Id(Str(input, "turn_id"))) return null; p["turnId"] = Str(input, "turn_id"); } return p;
+            if (Get(input, "turn_id") != null) { if (!Id(Str(input, "turn_id"))) return null; p["turnId"] = Str(input, "turn_id"); }
+            foreach (var pair in new[] { new[] { "tool_use_id", "toolUseId" }, new[] { "tool_name", "toolName" } }) {
+                if (Get(input, pair[0]) != null) { if (!Id(Str(input, pair[0]))) return null; p[pair[1]] = Str(input, pair[0]); }
+            }
+            return p;
         }
         if (ev == null || String.IsNullOrEmpty(sid) || sid.Length > 256) return null;
         var result = new Dictionary<string, object>();

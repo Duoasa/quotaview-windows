@@ -21,7 +21,15 @@ export function trackWindowRegion(view) {
       topRadius: parseFloat(s.borderTopLeftRadius) || 0,
       bottomRadius: parseFloat(s.borderBottomLeftRadius) || 0,
     };
-    const key = JSON.stringify(value);
+    // A content measurement can arrive before the native window grows. Its
+    // region is then clipped to the old bounds. Re-send after the WebView
+    // viewport catches up, even when the element geometry is unchanged.
+    const key = JSON.stringify([
+      value,
+      innerWidth,
+      innerHeight,
+      devicePixelRatio,
+    ]);
     if (key === last) return;
     last = key;
     window.quotaView.region(value).catch(() => {

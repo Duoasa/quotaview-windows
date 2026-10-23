@@ -181,3 +181,39 @@ test("proxy settings keep only a usable endpoint and discard removed reset prefe
     false,
   );
 });
+
+test("pending requests unify display status without changing execution state", () => {
+  const task = {
+    id: "task",
+    status: "working",
+    tool: "wait",
+    compacting: true,
+    approval: {
+      id: "question",
+      kind: "question",
+      asynchronous: true,
+      canRespond: false,
+      questions: [{ answered: false }],
+    },
+  };
+  assert.equal(state.displayState(task), "waiting");
+  assert.equal(state.needsAttention(task), true);
+  assert.equal(state.attentionKey(task), "task:question");
+  assert.equal(task.status, "working");
+  assert.equal(
+    state.displayState({ ...task, status: "completed" }),
+    "completed",
+  );
+  assert.equal(state.needsAttention({ ...task, status: "completed" }), false);
+  assert.equal(
+    state.displayState({ ...task, approval: undefined }),
+    "compacting",
+  );
+  assert.equal(
+    state.needsAttention({
+      ...task,
+      approval: { ...task.approval, questions: [{ answered: true }] },
+    }),
+    false,
+  );
+});

@@ -2,10 +2,27 @@
 (function (root) {
   "use strict";
   const terminal = new Set(["completed", "failed", "error", "interrupted"]);
+  function needsAttention(task) {
+    if (!task || terminal.has(task.status)) return false;
+    const approval = task.approval;
+    if (
+      approval?.kind === "question" &&
+      approval.questions?.length &&
+      approval.questions.every((question) => question.answered === true)
+    )
+      return false;
+    return task.status === "waiting" || !!approval;
+  }
+  function attentionKey(task) {
+    return needsAttention(task)
+      ? task.id + ":" + (task.approval?.id || task.turnId || "waiting")
+      : null;
+  }
   function displayState(task) {
     if (!task) return "unknown";
     const state = task.status || "unknown";
     if (state === "completed" && task.verified === false) return "unknown";
+    if (needsAttention(task)) return "waiting";
     if (
       terminal.has(state) ||
       ["waiting", "unknown", "disconnected"].includes(state)
@@ -67,6 +84,8 @@
     };
   }
   const api = {
+    needsAttention,
+    attentionKey,
     displayState,
     progressValue,
     presentationProgress,

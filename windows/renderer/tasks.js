@@ -20,6 +20,7 @@ import {
   useApp,
 } from "./common.js";
 import { QuotaCapsule, UsageView } from "./usage.js";
+const { needsAttention, attentionKey } = window.QVTaskState;
 function StatusOrb({ status: t = "unknown", small: e = !1, task: a }) {
   let { snapshot: l } = useApp();
   return window.QVEffects.renderOrb(React, {
@@ -50,27 +51,31 @@ function TaskCard({
       : t.title || i("\u672A\u547D\u540D\u4EFB\u52A1", "Untitled task"),
     w = r
       ? i("\u5185\u5BB9\u5DF2\u9690\u85CF", "Content hidden")
-      : t.tool
-        ? plainText(
-            (typeof t.tool == "object" && (t.tool.name || t.tool.command)) ||
-              t.tool,
-          )
-        : t.publicText
-          ? plainText(t.publicText).replace(/\s+/g, " ").slice(0, 150)
-          : f === "completed"
-            ? i(
-                "\u70B9\u51FB\u67E5\u770B\u516C\u5F00\u7ED3\u679C",
-                "View the public result",
-              )
-            : f === "unknown"
+      : needsAttention(t)
+        ? t.approval?.kind === "question"
+          ? i("等待你的回答", "Waiting for your answer")
+          : i("等待你的确认", "Waiting for your confirmation")
+        : t.tool
+          ? plainText(
+              (typeof t.tool == "object" && (t.tool.name || t.tool.command)) ||
+                t.tool,
+            )
+          : t.publicText
+            ? plainText(t.publicText).replace(/\s+/g, " ").slice(0, 150)
+            : f === "completed"
               ? i(
-                  "\u7B49\u5F85\u65B0\u7684\u72B6\u6001\u4E8B\u4EF6",
-                  "Waiting for a new status event",
+                  "\u70B9\u51FB\u67E5\u770B\u516C\u5F00\u7ED3\u679C",
+                  "View the public result",
                 )
-              : i(
-                  "\u7B49\u5F85\u516C\u5F00\u8FDB\u5C55",
-                  "Waiting for public progress",
-                );
+              : f === "unknown"
+                ? i(
+                    "\u7B49\u5F85\u65B0\u7684\u72B6\u6001\u4E8B\u4EF6",
+                    "Waiting for a new status event",
+                  )
+                : i(
+                    "\u7B49\u5F85\u516C\u5F00\u8FDB\u5C55",
+                    "Waiting for public progress",
+                  );
   return React.createElement(
     "div",
     {
@@ -313,6 +318,7 @@ function ApprovalCard({ task: t }) {
           React.Fragment,
           null,
           n.reason &&
+            n.reason !== "desktop_transport_unverified" &&
             React.createElement(
               "p",
               { className: "approval-reason" },
@@ -548,9 +554,13 @@ function TaskDetail({ task: t, childrenTasks: e, depth: a = 0 }) {
     o = taskProgress(t),
     c = l.settings.privacy,
     [r, g] = React.useState(null);
+  const childAttention = e?.find(needsAttention)?.id;
+  React.useEffect(() => {
+    if (childAttention) g(childAttention);
+  }, [childAttention]);
   return React.createElement(
     "div",
-    { className: `task-detail status-${t.status}` },
+    { className: `task-detail status-${window.QVEffects.displayState(t)}` },
     React.createElement(
       "div",
       { className: "task-detail-toolbar" },
@@ -563,7 +573,7 @@ function TaskDetail({ task: t, childrenTasks: e, depth: a = 0 }) {
               "\u5B8C\u6210\u72B6\u6001\u672A\u9A8C\u8BC1",
               "Completion unverified",
             )
-          : statusLabel(t.status, n),
+          : statusLabel(window.QVEffects.displayState(t), n),
       ),
     ),
     t.verified === !1 &&
@@ -761,11 +771,15 @@ function TaskDetail({ task: t, childrenTasks: e, depth: a = 0 }) {
             React.createElement(
               "button",
               {
-                className: `subagent-row status-${m.status}`,
+                className: `subagent-row status-${window.QVEffects.displayState(m)}`,
                 onClick: () => g(r === m.id ? null : m.id),
                 "aria-expanded": r === m.id,
               },
-              React.createElement(StatusOrb, { status: m.status, small: !0 }),
+              React.createElement(StatusOrb, {
+                status: window.QVEffects.displayState(m),
+                small: !0,
+                task: m,
+              }),
               React.createElement(
                 "span",
                 null,
@@ -783,7 +797,7 @@ function TaskDetail({ task: t, childrenTasks: e, depth: a = 0 }) {
                 React.createElement(
                   "small",
                   null,
-                  statusLabel(m.status, n),
+                  statusLabel(window.QVEffects.displayState(m), n),
                   !c && m.model ? ` \xB7 ${m.model}` : "",
                 ),
               ),
@@ -844,6 +858,7 @@ function IslandView() {
     N = React.useRef(null),
     hoverOpen = React.useRef(null),
     pointerInside = React.useRef(false),
+    seenAttention = React.useRef(new Set()),
     suppressHover = React.useRef(false),
     interactionState = React.useRef(null),
     D = React.useRef(""),
@@ -851,15 +866,13 @@ function IslandView() {
     d = t.tasks,
     h = d
       .filter((O) => !O.parentId || !d.some((V) => V.id === O.parentId))
-      .sort(
-        (O, V) =>
-          +(!!V.approval || V.status === "waiting") -
-          +(!!O.approval || O.status === "waiting"),
-      ),
+      .sort((O, V) => +needsAttention(V) - +needsAttention(O)),
     x = h.filter((O) =>
-      ["thinking", "working", "compacting"].includes(O.status),
+      ["thinking", "working", "compacting"].includes(
+        window.QVEffects.displayState(O),
+      ),
     ),
-    T = h.filter((O) => O.status === "waiting" || O.approval),
+    T = d.filter(needsAttention),
     M = h[0],
     focusedId = h.find((task) => task.id === focusedTaskId)?.id ?? M?.id;
   interactionState.current = { pinned: p, pending: T.length };
@@ -871,6 +884,31 @@ function IslandView() {
     React.useEffect(() => {
       typeof t.ui?.pinned == "boolean" && w(t.ui.pinned);
     }, [t.ui?.pinned]));
+  React.useEffect(() => {
+    const pending = d.filter(needsAttention);
+    const fresh = pending.find(
+      (task) => !seenAttention.current.has(attentionKey(task)),
+    );
+    seenAttention.current = new Set(pending.map(attentionKey));
+    if (!fresh || !t.settings.autoExpand) return;
+    // Keep an already open request stable while the user reads or answers it.
+    if (n && u === "tasks" && pending.some((task) => task.id === c)) return;
+    let target = fresh;
+    const visited = new Set();
+    while (target.parentId && !visited.has(target.id)) {
+      visited.add(target.id);
+      const parent = d.find((task) => task.id === target.parentId);
+      if (!parent) break;
+      target = parent;
+    }
+    clearTimeout(N.current);
+    clearTimeout(hoverOpen.current);
+    suppressHover.current = false;
+    setFocusedTaskId(target.id);
+    r(target.id);
+    o("tasks");
+    i(true);
+  }, [d, t.settings.autoExpand]);
   let E = (O) => {
       setFocusedTaskId(O);
       r((V) => (V === O ? null : O));

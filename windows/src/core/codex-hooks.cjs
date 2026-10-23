@@ -169,8 +169,11 @@ class CodexHooks extends EventEmitter {
         let envelope; try { envelope = JSON.parse(buffer.subarray(0, index)); } catch { socket.destroy(); return; }
         const payload = envelope?.payload;
         if (!F.object(envelope) || typeof envelope.authenticationToken !== 'string' || !/^[a-f0-9]{64}$/.test(envelope.authenticationToken) || !crypto.timingSafeEqual(Buffer.from(token), Buffer.from(envelope.authenticationToken)) || envelope.installationId !== runtime.installationId || typeof envelope.eventId !== 'string' || !/^[a-zA-Z0-9._:-]{1,128}$/.test(envelope.eventId) || runtime.seen.has(envelope.eventId) || !F.object(payload) || !EVENTS.has(payload.event) || typeof payload.sessionId !== 'string' || payload.sessionId.length < 1 || Buffer.byteLength(payload.sessionId) > 1024 || /[\x00-\x1f\x7f]/.test(payload.sessionId) || (payload.turnId != null && (typeof payload.turnId !== 'string' || payload.turnId.length < 1 || Buffer.byteLength(payload.turnId) > 1024 || /[\x00-\x1f\x7f]/.test(payload.turnId))) || this.runtime !== runtime || !this.enabled) { socket.destroy(); return; }
+        for (const key of ['toolUseId', 'toolName']) {
+          if (payload[key] != null && (typeof payload[key] !== 'string' || !payload[key].length || Buffer.byteLength(payload[key]) > 1024 || /[\x00-\x1f\x7f]/.test(payload[key]))) { socket.destroy(); return; }
+        }
         runtime.seen.add(envelope.eventId); if (runtime.seen.size > 4096) runtime.seen.delete(runtime.seen.values().next().value);
-        const event = { event: payload.event, sessionId: payload.sessionId, turnId: payload.turnId ?? null, observedAt: Date.now() };
+        const event = { event: payload.event, sessionId: payload.sessionId, turnId: payload.turnId ?? null, toolUseId: payload.toolUseId ?? null, toolName: payload.toolName ?? null, observedAt: Date.now() };
         this.state.connected = true; this.state.message = 'hooks_connected'; this.state.lastEventAt = event.observedAt;
         socket.end(JSON.stringify({ eventId: envelope.eventId, accepted: true }) + '\n');
         this.emit('observation', event); this.emit('change');
