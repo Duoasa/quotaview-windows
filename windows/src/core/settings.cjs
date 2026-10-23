@@ -4,10 +4,9 @@ const path = require("node:path");
 const DEFAULTS = Object.freeze({
   language: "system",
   theme: "dark",
-  material: "glass",
+  material: "solid",
   effect: "quantum",
   islandWidth: 680,
-  blackRatio: 0.45,
   showCapsule: true,
   privacy: false,
   autoExpand: true,
@@ -52,7 +51,6 @@ function cleanSettings(input = {}) {
   const enums = {
     language: ["system", "en", "zh"],
     theme: ["system", "light", "dark"],
-    material: ["glass", "solid"],
     effect: ["quantum"],
     codexHookScope: ["all", "compaction"],
     tokenActivityRange: ["week", "month", "threeMonths", "sixMonths"],
@@ -61,7 +59,6 @@ function cleanSettings(input = {}) {
     if (values.includes(input[k])) s[k] = input[k];
   for (const [k, min, max] of [
     ["islandWidth", 520, 800],
-    ["blackRatio", 0.2, 0.8],
     ["refreshSeconds", 15, 3600],
     ["collapseDelaySeconds", 5, 60],  ])
     if (Number.isFinite(input[k]))

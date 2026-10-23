@@ -357,14 +357,14 @@ small {
   border-radius: 30px;
   border: 1px solid rgba(255, 255, 255, 0.17);
   box-shadow: inset 0 1px #ffffff14;
-  background: #767b8821;
+  background: #1a1a1e;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   padding: 0 13px;
   white-space: nowrap;
-  backdrop-filter: blur(20px) saturate(125%);
+  backdrop-filter: none;
   font-size: 12px;
   color: var(--footer-ink, #f5f5f8);
   font-family:
@@ -381,6 +381,9 @@ small {
   color: #efeff1;
 }
 .quota-capsule.stale {
+  color: #aaaab2;
+}
+.quota-capsule.stale > * {
   opacity: 0.7;
 }
 .capsule-window {
@@ -437,8 +440,8 @@ small {
   border-top: 0;
   border-radius: 0 0 25px 25px;
   overflow: hidden;
-  backdrop-filter: blur(25px) saturate(125%);
-  background: #2528302e;
+  backdrop-filter: none;
+  background: #000;
   transition:
     border-radius var(--motion),
     background var(--motion);
@@ -449,15 +452,7 @@ small {
   position: absolute;
   z-index: -1;
   inset: 0;
-  background: linear-gradient(
-    to bottom,
-    #000 0%,
-    #000 var(--black-ratio, 45%),
-    rgba(0, 0, 0, 0.94) calc(var(--black-ratio, 45%) + 7%),
-    rgba(0, 0, 0, 0.65) calc(var(--black-ratio, 45%) + 17%),
-    rgba(0, 0, 0, 0.18) 81%,
-    transparent 94%
-  );
+  background: #000;
   pointer-events: none;
 }
 .island-shell.has-approval {
@@ -1976,12 +1971,12 @@ small {
 .preview-shell {
   position: relative;
   isolation: isolate;
-  background: #3540592e;
+  background: #000;
   border: 1px solid #ffffff28;
   border-top: 0;
   border-radius: 0 0 20px 20px;
   padding: 0 9px;
-  backdrop-filter: blur(15px);
+  backdrop-filter: none;
   margin: 0 auto;
   max-width: 560px;
   overflow: hidden;
@@ -2930,17 +2925,7 @@ small {
   animation: none !important;
 }
 
-/* Windows Fluent surfaces. Native backdrops are clipped by the main process;
-   opaque fallback remains legible when DWM/transparency is unavailable. */
-.fallback-backdrop .island-shell,
-.fallback-backdrop .standalone-capsule .quota-capsule {
-  background-color: #202023;
-}
-.native-backdrop.material-glass .island-shell,
-.native-backdrop.material-glass .standalone-capsule .quota-capsule {
-  background: rgba(20, 20, 24, 0.42);
-  backdrop-filter: none;
-}
+/* Windows uses opaque surfaces; the native window only clips their shape. */
 .settings-window {
   border-radius: 0;
   font-family:

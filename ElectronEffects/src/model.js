@@ -220,7 +220,7 @@
       p[28] = this.state === "completed" ? 1 : 0;
       // Full-width activity field is distinct from a measured progress boundary.
       p[54] =
-        !this.known && ["working", "waiting", "error"].includes(this.state)
+        !this.known && this.state !== "completed"
           ? 1
           : 0;
       p.set([0, 1 / 3, 2 / 3, 1], 30);

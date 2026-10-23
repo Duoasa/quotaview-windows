@@ -29,7 +29,13 @@ function StatusOrb({ status: t = "unknown", small: e = !1, task: a }) {
     reduceMotion: !!l.settings.reduceMotion,
   });
 }
-function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
+function TaskCard({
+  task: t,
+  selected: e,
+  focused = false,
+  onSelect: a,
+  nested: l = !1,
+}) {
   let { snapshot: n, t: i, locale: u, now: o, invoke } = useApp(),
     c = React.useRef(null);
   React.useEffect(() => observeVisibility(c.current), []);
@@ -84,9 +90,11 @@ function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
       className: `task-card status-${f} effect-quantum ${e ? "selected" : ""} ${l ? "nested" : ""} ${g.known ? "known-progress" : "unknown-progress"}`,
       onClick: a,
       "aria-expanded": e,
+      "data-focused": focused,
+      "data-task-id": t.id,
       style: { "--progress": `${g.percent ?? 0}%` },
     },
-    !["thinking", "compacting", "unknown", "interrupted"].includes(f) &&
+    focused &&
       React.createElement(window.QVEffects.ProgressEffect, {
         react: React,
         task: t,
@@ -99,8 +107,7 @@ function TaskCard({ task: t, selected: e, onSelect: a, nested: l = !1 }) {
       React.createElement(
         "span",
         { className: "task-main" },
-        !["working", "waiting"].includes(f) &&
-          React.createElement(StatusOrb, { status: f, task: t }),
+        !focused && React.createElement(StatusOrb, { status: f, task: t }),
         React.createElement(
           "span",
           { className: "task-copy" },
@@ -831,6 +838,7 @@ function IslandView() {
     [n, i] = React.useState(!!t.ui?.expanded),
     [u, o] = React.useState("tasks"),
     [c, r] = React.useState(null),
+    [focusedTaskId, setFocusedTaskId] = React.useState(null),
     f = React.useRef(null),
     [p, w] = React.useState(!!t.ui?.pinned),
     N = React.useRef(null),
@@ -852,7 +860,8 @@ function IslandView() {
       ["thinking", "working", "compacting"].includes(O.status),
     ),
     T = h.filter((O) => O.status === "waiting" || O.approval),
-    M = h[0];
+    M = h[0],
+    focusedId = h.find((task) => task.id === focusedTaskId)?.id ?? M?.id;
   interactionState.current = { pinned: p, pending: T.length };
   (React.useEffect(() => {
     t.ui?.expanded !== void 0 &&
@@ -863,6 +872,7 @@ function IslandView() {
       typeof t.ui?.pinned == "boolean" && w(t.ui.pinned);
     }, [t.ui?.pinned]));
   let E = (O) => {
+      setFocusedTaskId(O);
       r((V) => (V === O ? null : O));
     },
     C = (O) => {
@@ -956,9 +966,6 @@ function IslandView() {
         "section",
         {
           className: `island-shell ${T.length ? "has-approval" : ""}`,
-          style: {
-            "--black-ratio": `${Math.max(0.2, Math.min(0.8, t.settings.blackRatio ?? 0.45)) * 100}%`,
-          },
         },
         n
           ? React.createElement(
@@ -1030,6 +1037,7 @@ function IslandView() {
                             React.createElement(TaskCard, {
                               task: O,
                               selected: c === O.id,
+                              focused: focusedId === O.id,
                               onSelect: () => E(O.id),
                             }),
                             c === O.id &&

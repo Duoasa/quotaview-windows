@@ -8,11 +8,10 @@ var PROVIDERS = ["codex", "claude", "dsh", "kimi"],
   },
   DEFAULT_SETTINGS = {
     language: "system",
-    theme: "system",
-    material: "glass",
+    theme: "dark",
+    material: "solid",
     effect: "quantum",
     islandWidth: 680,
-    blackRatio: 0.45,
     showCapsule: !0,
     privacy: !1,
     autoExpand: !0,
@@ -63,6 +62,8 @@ function normalizeSnapshot(t) {
     settings: {
       ...DEFAULT_SETTINGS,
       ...e.settings,
+      theme: "dark",
+      material: "solid",
       providers: { ...DEFAULT_SETTINGS.providers, ...e.settings?.providers },
     },
   };

@@ -51,3 +51,12 @@ test("mac-aligned preferences retain optional modules, material, privacy and scr
   assert.equal(value.islandWidth, 800);
   assert.equal(value.collapseDelaySeconds, 5);
 });
+
+test("legacy glass preferences always migrate to opaque Windows surfaces", () => {
+  for (const material of ["glass", "solid", "invalid", undefined]) {
+    const value = cleanSettings({ material, blackRatio: 0.2, theme: "light" });
+    assert.equal(value.material, "solid");
+    assert.equal(value.theme, "dark");
+    assert.equal("blackRatio" in value, false);
+  }
+});

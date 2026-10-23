@@ -155,9 +155,6 @@ function IslandPreview() {
       "div",
       {
         className: "preview-shell",
-        style: {
-          "--black-ratio": `${(e.settings.blackRatio ?? 0.45) * 100}%`,
-        },
       },
       React.createElement(
         "div",
@@ -171,7 +168,11 @@ function IslandPreview() {
         ),
       ),
       a
-        ? React.createElement(TaskCard, { task: a, onSelect: () => {} })
+        ? React.createElement(TaskCard, {
+            task: a,
+            focused: true,
+            onSelect: () => {},
+          })
         : React.createElement(
             "div",
             { className: "preview-empty-task" },
@@ -236,79 +237,6 @@ function IslandSettings() {
     h(
       SettingGroup,
       { title: t("外观与布局", "Appearance and layout") },
-      ...[
-        [
-          "glass",
-          t("磨砂玻璃", "Frosted glass"),
-          t(
-            "通透底栏、自然高光与深色玻璃卡片。",
-            "Translucent footer, soft highlights and dark glass cards.",
-          ),
-          "sparkles",
-        ],
-        [
-          "solid",
-          t("经典纯色", "Classic solid"),
-          t(
-            "关闭背景、卡片与按钮的玻璃材质。",
-            "Opaque backgrounds, cards and controls.",
-          ),
-          "island",
-        ],
-      ].map(([value, title, description, icon]) =>
-        h(
-          "button",
-          {
-            key: value,
-            className:
-              "choice-row " + (settings.material === value ? "selected" : ""),
-            "aria-pressed": settings.material === value,
-            onClick: () => setSetting("material", value),
-          },
-          h("span", { className: "row-icon" }, h(Icon, { name: icon })),
-          h(
-            "span",
-            null,
-            h("strong", null, title),
-            h("small", null, description),
-          ),
-          h(
-            "span",
-            { className: "choice-radio" },
-            settings.material === value && h(Icon, { name: "check", size: 12 }),
-          ),
-        ),
-      ),
-      settings.material === "glass" &&
-        h(
-          React.Fragment,
-          null,
-          h(
-            "div",
-            { className: "slider-setting" },
-            h(
-              "label",
-              { htmlFor: "glass-ratio" },
-              t("玻璃程度", "Glass amount"),
-            ),
-            h("input", {
-              id: "glass-ratio",
-              type: "range",
-              min: 20,
-              max: 80,
-              step: 1,
-              value: Math.round((1 - settings.blackRatio) * 100),
-              onChange: (event) =>
-                setSetting("blackRatio", 1 - Number(event.target.value) / 100),
-            }),
-            h(
-              "div",
-              { className: "slider-extents" },
-              h("span", null, t("黑色", "Black")),
-              h("span", null, t("玻璃", "Glass")),
-            ),
-          ),
-        ),
       h(
         "div",
         { className: "slider-setting" },
@@ -1502,8 +1430,8 @@ function SettingsView() {
         "Language, placement and app controls.",
       ),
       island: t(
-        "材质、隐私与自动展开。",
-        "Material, privacy and automatic opening.",
+        "布局、隐私与自动展开。",
+        "Layout, privacy and automatic opening.",
       ),
       usage: t(
         "\u9009\u62E9\u7528\u91CF\u9875\u663E\u793A\u7684\u53EF\u9009\u6A21\u5757\u3002",

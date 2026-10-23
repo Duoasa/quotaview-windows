@@ -46,3 +46,14 @@ test('interrupted tasks freeze and malformed time deltas cannot corrupt clocks',
  const m=new Model('working',.5);m.advance(NaN);m.advance(Infinity);m.advance(-2);assert.equal(m.orbPhase,0);
  m.setState('interrupted');const p=m.orbUniforms(100,100);advance(m,2);assert.deepEqual(m.orbUniforms(100,100),p);
 });
+
+test("focused thinking and compaction show animated activity without inventing progress",()=>{
+ for(const state of ["thinking","compacting","working","waiting","unknown","interrupted"]){
+  const m=new Model(state,null),before=m.quantumUniforms(400,64);advance(m,1);
+  const after=m.quantumUniforms(400,64);
+  assert.equal(m.known,false);assert.equal(after[2],0);assert.equal(after[11],0);assert.equal(after[54],1);
+  if(["thinking","compacting","working","waiting"].includes(state))assert.notDeepEqual(after,before,state);
+  if(state==="interrupted")assert.deepEqual(after,before);
+  m.setProgress(.5);assert.equal(m.quantumUniforms(400,64)[54],0);
+ }
+});

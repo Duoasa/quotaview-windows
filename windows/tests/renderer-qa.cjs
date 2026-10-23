@@ -1,7 +1,12 @@
 // Runs in isolated smoke windows with fixture data, never in a normal session.
 const fs = require("node:fs");
 const path = require("node:path");
-module.exports = async function verifyUI({ island, preferences, folder }) {
+module.exports = async function verifyUI({
+  island,
+  capsule,
+  preferences,
+  folder,
+}) {
   const now = Date.now();
   const days = Array.from({ length: 294 }, (_, index) => {
     const date = new Date(now);
@@ -17,6 +22,8 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     settings: {
       language: "zh",
       theme: "dark",
+      material: "glass", // Legacy saved preferences must still render solid.
+      blackRatio: 0.2,
       islandWidth: 680,
       autoExpand: false,
     },
@@ -103,9 +110,14 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   );
   island.setBounds = setBounds;
   if (frames.length > 12) throw Error("Expansion sends per-frame native IPC");
-  await run(island,"await wait(350);return true;");
-  const motionEvidence = await capture(island,"native-motion");
-  if (motionEvidence?.motion && (motionEvidence.motion.viewportResizes > 1 || motionEvidence.motion.frames < 3)) throw Error("Native animation must keep the WebView viewport fixed");
+  await run(island, "await wait(350);return true;");
+  const motionEvidence = await capture(island, "native-motion");
+  if (
+    motionEvidence?.motion &&
+    (motionEvidence.motion.viewportResizes > 1 ||
+      motionEvidence.motion.frames < 3)
+  )
+    throw Error("Native animation must keep the WebView viewport fixed");
   await inject(island, {
     ...fixture,
     ui: { expanded: true, pinned: false },
@@ -137,6 +149,78 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     return window.QVEffects.diagnostics();
   `,
   );
+
+  const focus = await run(
+    island,
+    `
+    const cards=()=>[...document.querySelectorAll('.task-list .task-card')];
+    const assertFocus=id=>{
+      const all=cards(), focused=all.filter(c=>c.dataset.focused==='true');
+      check(focused.length===1&&focused[0].dataset.taskId===id,'Incorrect focused card: '+id);
+      check(all.reduce((n,c)=>n+c.querySelectorAll('.qv-quantum-canvas').length,0)===1,'Multiple quantum task cards');
+      for(const c of all){
+        check(!!c.querySelector('.qv-quantum-canvas')===(c.dataset.taskId===id),'Quantum effect assigned by status');
+        check(!!c.querySelector('.qv-orb-canvas')===(c.dataset.taskId!==id),'Nonfocused card missing orb');
+      }
+    };
+    assertFocus('qa-wait');
+    cards().find(c=>c.dataset.taskId==='qa-think').click();await wait(180);
+    assertFocus('qa-think');
+    const canvas=cards().find(c=>c.dataset.taskId==='qa-think').querySelector('canvas');
+    const before=canvas.toDataURL();await wait(450);
+    check(before!==canvas.toDataURL(),'Focused thinking quantum effect is static');
+    cards().find(c=>c.dataset.taskId==='qa-think').click();await wait(80);
+    assertFocus('qa-think');
+    check(!document.querySelector('.task-list .task-detail'),'Closing detail lost separation from focus');
+    cards().find(c=>c.dataset.taskId==='qa-work').dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));
+    await wait(180);assertFocus('qa-work');
+    cards().find(c=>c.dataset.taskId==='qa-work').click();await wait(80);
+    assertFocus('qa-work');
+    return {exclusive:true,thinkingAnimated:true,keyboard:true,retainedAfterDetailClose:true};
+  `,
+  );
+  // Removing the focused task must hand focus to the first remaining card.
+  await inject(island, {
+    ...fixture,
+    tasks: [fixture.tasks[0]],
+    ui: { expanded: true },
+  });
+  await run(
+    island,
+    "const c=document.querySelector('.task-list .task-card');check(c?.dataset.taskId==='qa-think'&&c.dataset.focused==='true'&&c.querySelector('.qv-quantum-canvas'),'Removed focus was not reassigned');return true;",
+  );
+  focus.removalFallback = true;
+  await inject(island, { ...fixture, ui: { expanded: true } });
+  const solid = await run(
+    island,
+    `
+    const shell=getComputedStyle(document.querySelector('.island-shell'));
+    check(shell.backgroundColor==='rgb(0, 0, 0)'&&shell.backdropFilter==='none','Island still uses glass');
+    await window.quotaView.updateSettings({material:'glass',blackRatio:0.2});
+    const snapshot=await window.quotaView.snapshot();
+    check(snapshot.settings.material==='solid'&&!('blackRatio' in snapshot.settings),'Legacy material accepted by settings bridge');
+    return {island:true,legacySettings:true};
+  `,
+  );
+  if (capsule) {
+    await inject(capsule, fixture);
+    solid.capsule = await run(
+      capsule,
+      `
+      const el=document.querySelector('.quota-capsule'),style=getComputedStyle(el);
+      check(style.backgroundColor==='rgb(27, 27, 32)'&&style.backdropFilter==='none'&&style.opacity==='1','Capsule still uses glass');
+      el.classList.add('stale');check(getComputedStyle(el).opacity==='1','Stale capsule became transparent');
+      el.classList.remove('stale');return true;
+    `,
+    );
+    const evidence = await capture(capsule, "capsule-solid");
+    if (evidence && evidence.material !== "none")
+      throw Error("Capsule native backdrop is still enabled");
+  }
+  for (const win of [island, preferences])
+    if (win.qvMaterial !== "none")
+      throw Error("Native backdrop is still enabled");
+
   const usage = await run(
     island,
     `
@@ -204,6 +288,11 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
     check(controls.length===3&&controls.every(r=>Math.abs(r.width-46)<1&&Math.abs(r.height-32)<1),'Caption control sizes');
     check(controls[2].x+controls[2].width<=innerWidth&&controls[0].y<3,'Caption controls are misplaced');
     check(!document.querySelector('.preview-tag'),'Preview annotation remains');
+    check(!text.includes('玻璃')&&!text.includes('材质')&&!document.querySelector('#glass-ratio'),'Glass settings remain');
+    const shellStyle=getComputedStyle(document.querySelector('.preview-shell')), capsuleStyle=getComputedStyle(document.querySelector('.preview-capsule .quota-capsule'));
+    check(shellStyle.backgroundColor==='rgb(0, 0, 0)'&&shellStyle.backdropFilter==='none','Preview island uses glass');
+    check(capsuleStyle.backgroundColor==='rgb(27, 27, 32)'&&capsuleStyle.backdropFilter==='none','Preview capsule uses glass');
+    check(document.querySelector('.preview-shell .task-card .qv-quantum-canvas')&&!document.querySelector('.preview-shell .task-card .qv-orb-canvas'),'Preview focused effect mismatch');
     const preview=document.querySelector('.island-preview').getBoundingClientRect(), shell=document.querySelector('.preview-shell').getBoundingClientRect();
     check(Math.abs(preview.top-shell.top)<1,'Preview is detached from top');
     const detail=document.querySelector('.settings-detail');check(detail.scrollWidth<=detail.clientWidth+1,'Settings horizontal overflow');
@@ -270,5 +359,15 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   const native = await capture(preferences, "settings-restored");
   if (native && native.state !== "Normal")
     throw Error("Window did not return to Normal state");
-  return { hover, motion, nativeMotion: motionEvidence?.motion, nativeBoundsCalls: frames.length, usage, settings, native };
+  return {
+    hover,
+    motion,
+    focus,
+    solid,
+    nativeMotion: motionEvidence?.motion,
+    nativeBoundsCalls: frames.length,
+    usage,
+    settings,
+    native,
+  };
 };

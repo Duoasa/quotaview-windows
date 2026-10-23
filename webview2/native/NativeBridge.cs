@@ -71,7 +71,7 @@ public sealed partial class NativeBridge
                 temp = Path.GetTempPath(),
                 cwd = AppRoot,
                 dataDir = DataRoot,
-                version = "0.8.3-win.4",
+                version = "0.8.3-win.5",
                 locale = CultureInfo.CurrentUICulture.Name,
                 osRelease = Environment.OSVersion.Version.ToString(),
                 env = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>().ToDictionary(x => x.Key.ToString()!, x => x.Value?.ToString()),

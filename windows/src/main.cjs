@@ -83,7 +83,7 @@ function runApplication() {
   const { SettingsStore, cleanSettings } = require("./core/settings.cjs");
   const { DismissedTasks } = require("./core/task-history.cjs");
   const { selectRelease } = require("./core/updates.cjs");
-  const { roundedRegion, materialFor } = require("./core/window-material.cjs");
+  const { roundedRegion } = require("./core/window-material.cjs");
   const { fileURLToPath } = require("node:url");
   const {
     ForegroundMonitor,
@@ -224,15 +224,7 @@ function runApplication() {
       if (win && !win.isDestroyed()) {
         if (win !== preferences)
           win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
-        const value = materialFor({
-          platform: process.platform,
-          release: os.release(),
-          enabled: settings.material === "glass",
-          transparency: nativeTheme.prefersReducedTransparency !== true,
-          highContrast: nativeTheme.shouldUseHighContrastColors,
-          regionReady: !!win.qvRegion,
-          settings: win === preferences,
-        });
+        const value = "none";
         if (
           process.platform === "win32" &&
           typeof win.setBackgroundMaterial === "function"
@@ -245,13 +237,8 @@ function runApplication() {
           }
         }
         win.setBackgroundColor(
-          win === preferences
-            ? win.qvMaterial !== "mica"
-              ? nativeTheme.shouldUseDarkColors
-                ? "#202020"
-                : "#f3f3f3"
-              : "#00000000"
-            : "#00000000",
+          // Overlay corners remain transparent; the renderer paints opaque surfaces.
+          win === preferences ? "#202020" : "#00000000",
         );
       }
   }
@@ -327,9 +314,7 @@ function runApplication() {
       ui: { expanded, expansionReason, pinned, hovered },
       platform: {
         os: process.platform,
-        glassNative:
-          process.platform === "win32" &&
-          Number(os.release().split(".")[2]) >= 22621,
+        glassNative: false,
         activeWindowTracking: foreground.available,
         nativeBackdrop: island?.qvMaterial === "acrylic",
         capsuleBackdrop: capsule?.qvMaterial === "acrylic",
@@ -1029,6 +1014,7 @@ function runApplication() {
         );
         const ui = await require("../tests/renderer-qa.cjs")({
           island,
+          capsule,
           preferences,
           folder: smokeReport ? path.dirname(smokeReport) : null,
         });
