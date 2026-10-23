@@ -142,7 +142,7 @@ const fs = require("fs"),
   );
   fs.writeFileSync(
     path.join(out, "package.json"),
-    JSON.stringify({ version: "0.8.3-win.8" }),
+    JSON.stringify({ version: "0.8.3-win.9" }),
   );
   const notices = path.join(out, "dist/assets/licenses");
   fs.mkdirSync(notices, { recursive: true });

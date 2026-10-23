@@ -43,7 +43,7 @@ pnpm run smoke    # 开发 Electron 的隔离启动、桥接和 GPU 检查
 ## 行为边界
 
 - 重置演示页及开关已删除；真实额度的重置倒计时继续保留。桌面小组件不进入 Windows 构建。
-- Codex 额度连接使用独立只读 App Server。Windows Desktop 的审批、问题回复、中断不受该连接控制，界面明确引导回 Codex。
+- Codex 额度连接使用独立只读 App Server；审批与问题回答使用单独的桌面 follower 连接。Windows 原生宿主校验同一命名管道的服务端用户与 Codex 包身份，发现原会话 owner 后订阅 v11 状态；只向该 owner 提交当前请求，不接管或重启会话。中断仍在 Codex 处理。
 - Claude 只有本次连接的实时 PermissionRequest 可以响应；超时、错误 ID 或失去连接时不产生批准决定。
 - Claude 新轮次预览要求匹配当前提示 ID，或明确的新时间戳。在缺乏可信边界时保留空预览，避免旧答案/中断污染新任务；真实 Claude 版本的日志顺序仍需实机验证。
 - 代理覆盖更新检查和 QuotaView 启动的 Codex 额度子进程。系统模式通过 Electron 解析代理/PAC；本地鉴权 CONNECT 桥接支持 HTTP/HTTPS、SOCKS5、SOCKS4a。手动代理不接受嵌入账号密码，HTTP 普通请求不经该桥接转发。其他 Agent 进程保持自己的代理配置。

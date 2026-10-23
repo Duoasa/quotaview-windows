@@ -86,16 +86,17 @@ public sealed partial class NativeBridge
     }
     sealed class Connection : IDisposable
     {
-        public TcpClient Client; public Stream Stream; public Task Writes = Task.CompletedTask; public readonly object Gate = new(); public bool Reading, RemoteEnded, LocalEnded, AllowHalfOpen; public long QueuedBytes; public Connection(TcpClient c)
+        public TcpClient? Client; public Stream Stream; public Task Writes = Task.CompletedTask; public readonly object Gate = new(); public bool Reading, RemoteEnded, LocalEnded, AllowHalfOpen; public long QueuedBytes; public Connection(TcpClient c)
         {
             Client = c;
             Stream = c.GetStream();
         }
+        public Connection(Stream stream) { Stream = stream; }
         public void Dispose()
         {
             try
             {
-                Client.Dispose();
+                Client?.Dispose();
                 Stream.Dispose();
             }
             catch { }
@@ -122,6 +123,7 @@ public sealed partial class NativeBridge
                 listener.Stop();
             return null;
         }
+        if (op == "socket.codexDesktop") { ConnectCodexDesktop(id); return null; }
         if (op == "socket.connect")
         {
             var host = A(a, 1);
@@ -161,7 +163,7 @@ public sealed partial class NativeBridge
                 CloseSocket(id);
                 return;
             }
-            c.Writes = c.Writes.ContinueWith(async _ => { try { if (data != null) { await c.Stream.WriteAsync(data); Interlocked.Add(ref c.QueuedBytes, -data.Length); } else { c.LocalEnded = true; c.Client.Client.Shutdown(SocketShutdown.Send); if (c.RemoteEnded) CloseSocket(id); } } catch (Exception e) { Emit(new { id, type = "error", error = e.Message }); CloseSocket(id); } }, TaskScheduler.Default).Unwrap();
+            c.Writes = c.Writes.ContinueWith(async _ => { try { if (data != null) { await c.Stream.WriteAsync(data); Interlocked.Add(ref c.QueuedBytes, -data.Length); } else { c.LocalEnded = true; if (c.Client != null) c.Client.Client.Shutdown(SocketShutdown.Send); if (c.Client == null || c.RemoteEnded) CloseSocket(id); } } catch (Exception e) { Emit(new { id, type = "error", error = e.Message }); CloseSocket(id); } }, TaskScheduler.Default).Unwrap();
         }
     }
     void StartRead(string id, Connection c)

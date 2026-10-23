@@ -128,7 +128,7 @@ internal sealed class Host : Form
             await Task.Delay(15000);
             var first = windows.Values.First();
             await first.Evaluate("window.quotaView.refresh()");
-            var data = await first.Evaluate("window.quotaView.snapshot().then(s=>({taskCount:s.tasks.length,quota:!!s.quotas.codex,providers:Object.fromEntries(Object.entries(s.providers).map(([k,v])=>[k,{enabled:v.enabled,connected:v.connected,message:v.message,quotaError:v.quotaError,hooks:v.hooks}])),platform:s.platform,settingsLoaded:!!s.settings,bridgeHidden:(()=>{try{return typeof chrome.webview.hostObjects.sync.native==='undefined';}catch{return true;}})()}))");
+            var data = await first.Evaluate("window.quotaView.snapshot().then(s=>({taskCount:s.tasks.length,quota:!!s.quotas.codex,providers:Object.fromEntries(Object.entries(s.providers).map(([k,v])=>[k,{enabled:v.enabled,connected:v.connected,message:v.message,quotaError:v.quotaError,hooks:v.hooks,desktop:v.desktop}])),platform:s.platform,settingsLoaded:!!s.settings,bridgeHidden:(()=>{try{return typeof chrome.webview.hostObjects.sync.native==='undefined';}catch{return true;}})()}))");
             await first.Evaluate("window.quotaView.resize({expanded:true,pinned:true}).then(()=>window.quotaView.openSettings())");
             await Task.Delay(1000);
             var views = new JsonArray();

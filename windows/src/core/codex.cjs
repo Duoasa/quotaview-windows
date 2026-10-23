@@ -8,6 +8,7 @@ const os = require("node:os");
 const rollout = require("./codex-rollout.cjs");
 const rpc = require("./codex-rpc.cjs");
 const { CodexHooks } = require("./codex-hooks.cjs");
+const { CodexDesktop } = require("./codex-desktop.cjs");
 const {
   RolloutParser,
   RolloutDiscovery,
@@ -28,9 +29,8 @@ const {
   normalizeAccountUsage,
 } = rpc;
 
-// The Windows desktop's private coordination pipe does not have a published,
-// versioned ownership/peer-identity contract. Quota stdio is NOT that pipe. This
-// explicit capability prevents observational IDs from becoming write authority.
+// Offline fallback: only a verified live desktop owner can grant response
+// capability. Rollout/Hook IDs and the quota stdio server remain read-only.
 const DESKTOP_CAPABILITY = Object.freeze({
   status: "unsupported",
   reason: "windows_desktop_ownership_transport_unverified",
@@ -55,6 +55,12 @@ class CodexService extends EventEmitter {
     this.rpc =
       options.rpcClient || new CodexAppServer({ ...options, home: this.home });
     this.hooks = new CodexHooks({ ...options, home: this.home });
+    this.desktop = options.desktopClient || new CodexDesktop({enabled: options.desktopEnabled !== false});
+    this.desktop.on("change", () => {
+      this.state.desktop = this.desktop.getState();
+      this.state.capabilities = this.state.desktop.connected ? {status:"connected", approvals:true, questionResponses:true, interrupt:false} : DESKTOP_CAPABILITY;
+      if (this.enabled) this.publish();
+    });
     this.pendingHooks = [];
     this.cursors = new Map();
     this.enabled = false;
@@ -112,6 +118,7 @@ class CodexService extends EventEmitter {
       message: "connecting",
       capabilities: DESKTOP_CAPABILITY,
     };
+    this.desktop.start();
     await this.refreshActivity();
     if (!this.enabled || generation !== this.generation) return;
     await this.hooks.start();
@@ -140,6 +147,7 @@ class CodexService extends EventEmitter {
     this.activityTimer = null;
     this.quotaTimer = null;
     this.rpc.stop();
+    this.desktop.stop();
     const closedDiscovery = this.discovery.close();
     this.discovery = new RolloutDiscovery(this.home, this.options);
     this.activityPending = null;
@@ -327,6 +335,7 @@ class CodexService extends EventEmitter {
         }
       }
       if (!this.enabled || generation !== this.generation) return;
+      this.desktop.sync([...this.cursors.values()].sort((a,b) => b.mtime-a.mtime).map(c => c.parser.threadId));
       this.localUsage = this.collectUsage();
       this.state.activityConnected = observed > 0;
       if (discovery.readError) this.state.activityError = discovery.readError;
@@ -511,10 +520,10 @@ class CodexService extends EventEmitter {
     const tasks = this.enabled
       ? [...this.cursors.values()]
           .map((cursor) =>
-            cursor.parser.getTask(
+            this.desktop.overlay(cursor.parser.getTask(
               this.clock(),
               this.options.staleAfter || 300000,
-            ),
+            ), cursor.parser.threadId),
           )
           .filter(Boolean)
           .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
@@ -536,13 +545,10 @@ class CodexService extends EventEmitter {
     });
   }
 
-  async respond() {
-    // Neither the local parser nor the independent quota server can mint an
-    // owned desktop request. Fail closed for forged, stale and observed IDs.
-    throw new CodexError(
-      "desktop_response_unsupported",
-      "This request must be answered in Codex; Windows desktop request ownership has not been verified.",
-    );
+  async respond(id, decision) {
+    if (!this.enabled) throw new CodexError("desktop_response_unsupported");
+    if (!this.desktop.connected) throw new CodexError("desktop_response_unsupported", "This request must be answered in Codex; the desktop connection is unavailable.");
+    return this.desktop.respond(id, decision);
   }
 }
 

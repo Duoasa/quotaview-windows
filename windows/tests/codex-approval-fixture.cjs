@@ -26,6 +26,7 @@ exports.create = async function ({ root, executable }) {
   append("event_msg", { type: "task_started", turn_id: turn });
   const service = new CodexService({
     home,
+    desktopEnabled: false,
     dataDir: path.join(root, "codex-data"),
     hookExecutable: executable,
     executable,

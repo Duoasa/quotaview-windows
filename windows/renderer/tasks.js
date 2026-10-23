@@ -235,7 +235,15 @@ function ApprovalCard({ task: t }) {
       (await a("respond", { id: n.id, decision: A }, { throwError: !0 }),
         c(!0));
     } catch (O) {
-      g(O.message);
+      const errors = {
+        codex_stale_request: e("此请求已更新或已处理，请查看当前卡片。", "This request changed or was already handled. Check the current card."),
+        codex_request_already_submitted: e("已提交，正在等待 Codex 确认。", "Already submitted; waiting for Codex."),
+        codex_request_already_submitting: e("正在提交，请稍候。", "Submission is in progress."),
+        codex_submission_outcome_unknown: e("已发送，但结果尚未确认。请在 Codex 查看，勿重复提交。", "Sent, but the result is unconfirmed. Check Codex before trying again."),
+        codex_desktop_timeout: e("Codex 同步超时，请稍后重试。", "Codex synchronization timed out. Try again shortly."),
+        codex_desktop_disconnected: e("Codex 连接已断开，请等待重新连接。", "Codex disconnected. Waiting to reconnect."),
+      };
+      g(errors[O.message] || O.message);
     } finally {
       u(!1);
     }
@@ -408,7 +416,7 @@ function ApprovalCard({ task: t }) {
                   ),
                 );
               }),
-              React.createElement(
+              A.isOther !== false && React.createElement(
                 "button",
                 {
                   type: "button",
@@ -443,7 +451,7 @@ function ApprovalCard({ task: t }) {
           }),
         ),
     r && React.createElement(Notice, { tone: "warning" }, r),
-    o
+    (o || n.submitted)
       ? React.createElement(
           Notice,
           { icon: "check" },

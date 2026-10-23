@@ -597,8 +597,8 @@ function IntegrationSettings({ provider: t }) {
         Notice,
         null,
         e(
-          "可查看额度和任务状态。Windows 上 Codex Desktop 的审批、问题回复和中断操作需要回到 Codex 完成。",
-          "Quota and task observation are available. Codex Desktop approvals, questions and interruption must be handled in Codex on Windows.",
+          N.desktop?.connected ? "已连接 Codex 桌面。可在灵动岛批准、拒绝和回答问题，操作会提交给原会话。" : "等待 Codex 桌面连接。连接后可在灵动岛处理审批和问题；额度和任务记录仍可查看。",
+          N.desktop?.connected ? "Codex Desktop connected. Approve, deny and answer questions in the island; responses go to the original conversation." : "Waiting for Codex Desktop. Approvals and questions become available when connected; quota and task records remain available.",
         ),
       ),
     t === "claude" &&

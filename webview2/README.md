@@ -30,7 +30,7 @@ WebView2 Runtime 官方安装入口：https://developer.microsoft.com/microsoft-
 
 - 首次启用使用独立偏好目录 `%APPDATA%/QuotaView WebView2`，不会自动覆盖旧 Electron 偏好。
 - 浏览器缓存和日志在 `%LOCALAPPDATA%/QuotaView WebView2`。应用日志不记录任务正文、认证令牌或 Cookie。
-- 默认只读发现本机 Codex。其他客户端 Hook 的安装 / 卸载通过连接页操作；保留其他工具已有的 Hook 配置。
+- 自动发现本机 Codex，并连接桌面的实时审批与问题队列。其他客户端 Hook 的安装 / 卸载通过连接页操作；保留其他工具已有的 Hook 配置。
 - Hook 引用当前应用的绝对路径。移动或删除运行目录前，在连接页解除相应 Hook；移动后重新配置。
 - 用量账户统计和本地记录不叠加。成本按可识别模型估算，不是订阅账单；缺失日期不会当成零值。
 
@@ -53,3 +53,12 @@ WebView2 Runtime 官方安装入口：https://developer.microsoft.com/microsoft-
 `-Action test` 还会运行 `--approval-test`：Claude 原生 Hook → 真实界面按钮 → 原生回执，覆盖允许、拒绝、取消、问题回答和过期请求；Codex 原生 Hook → 待确认 → 自动展开 → 工具结束清除。模拟项目及客户端配置位于独立目录，卡片中的命令不会执行。`webview2/build/approval-report.json` 保存结果。
 
 可执行文件加 `--approval-demo` 可手动体验 Claude 审批卡片，`--approval-demo-dir=<目录>` 指定项目根目录。正常模式不产生模拟请求。Codex 已配置活动 Hook 时显示真实 PermissionRequest，但批准操作仍需在 Codex 中完成。
+
+## 本地开发版 0.8.3-win.9
+
+- 接入 Codex Windows Desktop 的命名管道 follower：当前请求自动显示，批准、拒绝、同步与异步问题提交给原会话 owner。额度 App Server 保持独立只读。
+- 只接受当前连接、当前 owner 和当前请求；提交前重新同步，旧请求、重复提交和断线不能继续操作。超时不自动重试决定。
+- 支持命令、文件与权限请求；MCP 空表单支持确认，外部验证及复杂表单留在原客户端。非兼容版本降级为只读。
+- 已通过原生冒烟、适配器、原有审批测试及 46 项回归；本机真实桌面已连接，用户确认异步问题已通过灵动岛回到原聊天。后续 MCP 小范围适配仅编译，未追加交互验收。
+- 已知未核实项：一次真实拒绝测试用户表示点击拒绝，但命令仍执行；桌面日志记录该请求收到 accept。依用户要求停止进一步核对，不能将此项记为真实拒绝验收通过。
+- 本批审批接入基于 main 的 34bb9d4；提交邮箱为 xuchen1995@gmail.com。

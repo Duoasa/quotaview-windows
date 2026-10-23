@@ -173,6 +173,11 @@ export function connect(options, fn) {
   return socket;
 }
 export const net = {
+  connectCodexDesktop: () => {
+    const socket = new Socket();
+    call("socket.codexDesktop", socket.id);
+    return socket;
+  },
   createServer: (options, listener) =>
     new Server(typeof options === "function" ? options : listener),
   connect,
