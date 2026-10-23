@@ -78,9 +78,9 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   await inject(island, fixture);
   const frames = [];
   const setBounds = island.setBounds.bind(island);
-  island.setBounds = (b) => {
+  island.setBounds = (b, animate) => {
     frames.push({ ...b });
-    setBounds(b);
+    setBounds(b, animate);
   };
   const hover = await run(
     island,
@@ -102,16 +102,10 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   `,
   );
   island.setBounds = setBounds;
-  const moving = frames.filter((b) => b.width > 270 && b.width < 680);
-  if (
-    moving.length < 3 ||
-    moving.some(
-      (b) =>
-        Math.abs(b.x + b.width / 2 - (moving[0].x + moving[0].width / 2)) > 1 ||
-        b.y !== moving[0].y,
-    )
-  )
-    throw Error("Expansion must animate around a fixed top center");
+  if (frames.length > 12) throw Error("Expansion sends per-frame native IPC");
+  await run(island,"await wait(350);return true;");
+  const motionEvidence = await capture(island,"native-motion");
+  if (motionEvidence?.motion && (motionEvidence.motion.viewportResizes > 1 || motionEvidence.motion.frames < 3)) throw Error("Native animation must keep the WebView viewport fixed");
   await inject(island, {
     ...fixture,
     ui: { expanded: true, pinned: false },
@@ -276,5 +270,5 @@ module.exports = async function verifyUI({ island, preferences, folder }) {
   const native = await capture(preferences, "settings-restored");
   if (native && native.state !== "Normal")
     throw Error("Window did not return to Normal state");
-  return { hover, motion, usage, settings, native };
+  return { hover, motion, nativeMotion: motionEvidence?.motion, nativeBoundsCalls: frames.length, usage, settings, native };
 };

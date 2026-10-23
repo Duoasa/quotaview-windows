@@ -255,61 +255,21 @@ function runApplication() {
         );
       }
   }
-  let boundsTimer = null,
-    boundsTarget = null;
+  let boundsTarget = null;
   function reposition(height) {
     if (!island || island.isDestroyed()) return;
     const d = display();
-    const target = placeIsland(
-      d,
-      expanded ? settings.islandWidth : 270,
-      expanded
-        ? Math.min(
-            height || boundsTarget?.height || 570,
-            d.workArea.height - (settings.showCapsule ? 112 : 16),
-          )
-        : 46,
-    );
+    const target = placeIsland(d, expanded ? settings.islandWidth : 270, expanded ? Math.min(height || boundsTarget?.height || 570, d.workArea.height - (settings.showCapsule ? 112 : 16)) : 46);
     if (JSON.stringify(target) === JSON.stringify(boundsTarget)) return;
     const from = island.getBounds();
+    const animate = !!island.qvRegion && from.y === target.y && Math.abs(from.x + from.width/2 - target.x - target.width/2) <= 2;
     boundsTarget = target;
-    clearInterval(boundsTimer);
-    const started = Date.now();
-    const apply = (p) => {
-      const ease = 1 - Math.pow(1 - p, 3);
-      const width = Math.round(from.width + (target.width - from.width) * ease);
-      const height = Math.round(
-        from.height + (target.height - from.height) * ease,
-      );
-      // Anchor every frame to the same screen center and top edge.
-      island.setBounds({
-        ...target,
-        x: Math.round(target.x + target.width / 2 - width / 2),
-        width,
-        height,
-      });
-      if (capsule && !capsule.isDestroyed()) {
-        const b = placeIsland(d, 360, 76);
-        capsule.setBounds({ ...b, y: target.y + height - 22 });
-      }
-    };
-    if (
-      !island.qvRegion ||
-      from.y !== target.y ||
-      Math.abs(from.x + from.width / 2 - target.x - target.width / 2) > 2
-    ) {
-      apply(1);
-      return;
+    // One IPC per endpoint. Native animation keeps the WebView viewport fixed.
+    island.setBounds(target, animate);
+    if (capsule && !capsule.isDestroyed()) {
+      const b = placeIsland(d, 360, 76);
+      capsule.setBounds({...b, y: target.y + target.height - 22}, animate);
     }
-    boundsTimer = setInterval(() => {
-      if (island.isDestroyed()) {
-        clearInterval(boundsTimer);
-        return;
-      }
-      const p = Math.min(1, (Date.now() - started) / 320);
-      apply(p);
-      if (p === 1) clearInterval(boundsTimer);
-    }, 16);
   }
   function setExpanded(value, reason) {
     clearTimeout(hideTimer);

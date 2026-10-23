@@ -17,6 +17,13 @@ internal sealed class NativeWindow : Form
     string material = "none";
     JsonArray? shape;
     bool loaded;
+    readonly System.Windows.Forms.Timer motionTimer = new() { Interval = 10 };
+    Rectangle motionFrom, motionTarget;
+    long motionStarted;
+    int motionFrames, viewportResizes;
+    double maxFrameGap;
+    long previousFrame;
+    Region? viewportRegion;
     internal NativeWindow(Host host, int id, JsonNode options)
     {
         this.host = host;
@@ -33,7 +40,8 @@ internal sealed class NativeWindow : Form
             Location = Screen.FromPoint(Cursor.Position).WorkingArea.Location;
         Controls.Add(web);
         Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);
-        FormClosed += (_, _) => host.WindowClosed(id);
+        FormClosed += (_, _) => { motionTimer.Dispose(); viewportRegion?.Dispose(); host.WindowClosed(id); };
+        motionTimer.Tick += (_, _) => AdvanceMotion();
         DpiChanged += (_, _) => { if (shape != null) ApplyRegion(shape); };
         // Force an HWND before asynchronous WebView2 initialization, without showing it.
         _ = Handle;
@@ -45,7 +53,7 @@ internal sealed class NativeWindow : Form
             Size = new Size(Math.Min(Width, area.Width - margin), Math.Min(Height, area.Height - margin));
             MinimumSize = new Size(Math.Min((int)(720 * DeviceDpi / 96d), Width), Math.Min((int)(520 * DeviceDpi / 96d), Height));
             Location = new Point(area.Left + (area.Width - Width) / 2, area.Top + (area.Height - Height) / 2);
-            MaximizedBounds = area;
+            MaximizedBounds = new Rectangle(area.X - Screen.FromHandle(Handle).Bounds.X, area.Y - Screen.FromHandle(Handle).Bounds.Y, area.Width, area.Height);
             Resize += (_, _) => { Send(new { kind = "window-state", maximized = WindowState == FormWindowState.Maximized }); host.Bridge.Emit(new { id = "window-" + id, type = "state", maximized = WindowState == FormWindowState.Maximized }); };
         }
     }
@@ -177,6 +185,7 @@ internal sealed class NativeWindow : Form
                 height = Screen.FromHandle(Handle).WorkingArea.Height
             },
             clipped = Region != null,
+            motion = new { frames = motionFrames, viewportResizes, maxFrameGap, active = motionTimer.Enabled },
             material,
             hostObjectsAllowed = web.CoreWebView2.Settings.AreHostObjectsAllowed
         });
@@ -205,9 +214,7 @@ internal sealed class NativeWindow : Form
             case "bounds":
                 {
                     var r = Displays.Physical(args[1]!);
-                    SetBounds(r.X, r.Y, r.Width, r.Height);
-                    if (shape != null)
-                        ApplyRegion(shape);
+                    MoveBounds(r, args.Count > 2 && B(args, 2));
                     break;
                 }
             case "top":
@@ -250,7 +257,9 @@ internal sealed class NativeWindow : Form
                 Activate();
                 break;
             case "state":
-                MaximizedBounds = Screen.FromHandle(Handle).WorkingArea;
+                var monitor = Screen.FromHandle(Handle);
+                var work = monitor.WorkingArea;
+                MaximizedBounds = new Rectangle(work.X - monitor.Bounds.X, work.Y - monitor.Bounds.Y, work.Width, work.Height);
                 WindowState = A(args, 1) switch
                 {
                     "maximize" => FormWindowState.Maximized,
@@ -289,8 +298,57 @@ internal sealed class NativeWindow : Form
             if (w > 0 && h > 0)
                 region.Union(Rectangle.FromLTRB((int)Math.Floor(x * scale), (int)Math.Floor(y * scale), (int)Math.Ceiling((x + w) * scale), (int)Math.Ceiling((y + h) * scale)));
         }
-        Region?.Dispose();
+        viewportRegion?.Dispose();
+        viewportRegion = region;
+        UpdateViewportRegion();
+    }
+    void MoveBounds(Rectangle target, bool animate)
+    {
+        motionTimer.Stop();
+        motionFrom = Bounds;
+        motionTarget = target;
+        motionFrames = 0;
+        viewportResizes = 0;
+        maxFrameGap = 0;
+        // Dock.Fill would resize the Chromium swap chain on every native tick.
+        // Size the child viewport once, and reveal it through the parent HWND.
+        if (overlay) web.Dock = DockStyle.None;
+        if (web.Size != target.Size) { web.Size = target.Size; viewportResizes++; }
+        if (!animate || !overlay || !Visible || motionFrom == target)
+        {
+            Bounds = target;
+            web.Location = Point.Empty;
+            UpdateViewportRegion();
+            return;
+        }
+        web.Location = new Point((Width - web.Width) / 2, 0);
+        motionStarted = previousFrame = System.Diagnostics.Stopwatch.GetTimestamp();
+        motionTimer.Start();
+    }
+    void AdvanceMotion()
+    {
+        long now = System.Diagnostics.Stopwatch.GetTimestamp();
+        double elapsed = System.Diagnostics.Stopwatch.GetElapsedTime(motionStarted, now).TotalMilliseconds;
+        maxFrameGap = Math.Max(maxFrameGap, System.Diagnostics.Stopwatch.GetElapsedTime(previousFrame, now).TotalMilliseconds);
+        previousFrame = now;
+        double p = Math.Min(1, elapsed / 280), ease = 1 - Math.Pow(1 - p, 3);
+        int Lerp(int a, int b) => (int)Math.Round(a + (b - a) * ease);
+        int w = Lerp(motionFrom.Width, motionTarget.Width), h = Lerp(motionFrom.Height, motionTarget.Height);
+        int x = Lerp(motionFrom.X + motionFrom.Width / 2, motionTarget.X + motionTarget.Width / 2) - w / 2;
+        SetBounds(x, Lerp(motionFrom.Y, motionTarget.Y), w, h);
+        web.Location = new Point((Width - web.Width) / 2, 0);
+        UpdateViewportRegion();
+        motionFrames++;
+        if (p >= 1) { motionTimer.Stop(); Bounds = motionTarget; web.Location = Point.Empty; UpdateViewportRegion(); }
+    }
+    void UpdateViewportRegion()
+    {
+        if (viewportRegion == null) return;
+        var region = viewportRegion.Clone();
+        region.Translate(web.Left, web.Top);
+        var old = Region;
         Region = region;
+        old?.Dispose();
     }
     protected override void WndProc(ref Message m)
     {

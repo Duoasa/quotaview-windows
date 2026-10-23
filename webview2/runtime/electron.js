@@ -73,9 +73,9 @@ export class BrowserWindow extends EventEmitter {
   capture(folder) {
     return later("window.capture", this.id, folder);
   }
-  setBounds(b) {
+  setBounds(b, animate = false) {
     this.bounds = b;
-    call("window.bounds", this.id, b);
+    call("window.bounds", this.id, b, animate);
   }
   getBounds() {
     return this.bounds;
