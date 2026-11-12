@@ -278,10 +278,11 @@ module.exports = async function verifyUI({
     await window.quotaView.updateSettings({material:'glass',blackRatio:0.2});
     const snapshot=await window.quotaView.snapshot();
     check(snapshot.settings.material==='glass'&&!('blackRatio' in snapshot.settings),'Glass setting did not persist');
-    window.QVUITest.setSnapshot({...snapshot,ui:{expanded:true}});
-    await wait(120);
+    window.QVUITest.setSnapshot({...snapshot,ui:{expanded:true,pinned:true}});
     const reduced = matchMedia('(prefers-reduced-transparency: reduce)').matches || matchMedia('(forced-colors: active)').matches;
-    check(document.querySelector('.island-shell').hasAttribute('data-liquid-glass')===!reduced,'Glass material did not follow system accessibility settings');
+    const ready=()=>document.querySelector('.app.material-glass .expanded .island-shell')?.hasAttribute('data-liquid-glass')===!reduced;
+    for(let attempt=0;attempt<60&&!ready();attempt++) await wait(50);
+    check(ready(),'Glass material did not follow system accessibility settings: '+JSON.stringify({reduced,app:document.querySelector('.app')?.className,island:document.querySelector('.island-window')?.className,glass:document.querySelector('.island-shell')?.hasAttribute('data-liquid-glass')}));
     const el=document.querySelector('.island-shell'),r=el.getBoundingClientRect(),s=getComputedStyle(el);
     const native=await window.quotaView.region({x:r.x,y:r.y,width:r.width,height:r.height,topRadius:parseFloat(s.borderTopLeftRadius)||0,bottomRadius:parseFloat(s.borderBottomLeftRadius)||0});
     check(native.supported&&native.material==='none','Glass enabled a rectangular native backdrop');
