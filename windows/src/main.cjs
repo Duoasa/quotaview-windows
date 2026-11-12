@@ -236,20 +236,23 @@ function runApplication() {
       if (win && !win.isDestroyed()) {
         if (win !== preferences)
           win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
+        // DWM Acrylic paints the rectangular HWND outside the WebView's visual
+        // surface on this host. Keep it disabled until native clipping supports
+        // that compositor path; the renderer owns Glasswork tint and rim light.
         const value = "none";
         if (
           process.platform === "win32" &&
           typeof win.setBackgroundMaterial === "function"
         ) {
           try {
-            win.setBackgroundMaterial(value);
+            if (win.qvMaterial !== value) win.setBackgroundMaterial(value);
             win.qvMaterial = value;
           } catch {
             win.qvMaterial = "none";
           }
         }
         win.setBackgroundColor(
-          // Overlay corners remain transparent; the renderer paints opaque surfaces.
+          // Keep overlay corners transparent; do not enable a rectangular DWM backdrop.
           win === preferences ? "#202020" : "#00000000",
         );
       }

@@ -237,6 +237,10 @@ function IslandSettings() {
     h(
       SettingGroup,
       { title: t("外观与布局", "Appearance and layout") },
+      h(SettingRow, {title:t("窗口材质", "Window material"), description:t("液态玻璃的边缘折射在壁纸预览中显示。", "Rim refraction is visible over the wallpaper preview.")},
+        h(Select, {label:t("窗口材质", "Window material"), value:settings.material,
+          onChange:value=>setSetting("material",value),
+          options:[["glass",t("液态玻璃", "Liquid glass")],["solid",t("纯色", "Solid")]]})),
       h(
         "div",
         { className: "slider-setting" },

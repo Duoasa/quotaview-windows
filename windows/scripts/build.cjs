@@ -4,6 +4,7 @@ const { buildSync } = require("esbuild");
 const root = path.resolve(__dirname, "..");
 const output = path.join(root, "dist");
 fs.mkdirSync(path.join(output, "renderer/effects"), { recursive: true });
+fs.cpSync(path.join(root, 'renderer/glass'), path.join(output, 'renderer/glass'), {recursive:true});
 fs.rmSync(path.join(output, "assets"), { recursive: true, force: true });
 fs.cpSync(path.join(root, "assets"), path.join(output, "assets"), {
   recursive: true,

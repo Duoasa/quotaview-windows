@@ -22,7 +22,7 @@ module.exports = async function verifyUI({
     settings: {
       language: "zh",
       theme: "dark",
-      material: "glass", // Legacy saved preferences must still render solid.
+      material: "solid", // Retain coverage for the explicit opaque fallback.
       blackRatio: 0.2,
       islandWidth: 680,
       autoExpand: false,
@@ -277,16 +277,31 @@ module.exports = async function verifyUI({
     check(shell.backgroundColor==='rgb(0, 0, 0)'&&shell.backdropFilter==='none','Island still uses glass');
     await window.quotaView.updateSettings({material:'glass',blackRatio:0.2});
     const snapshot=await window.quotaView.snapshot();
-    check(snapshot.settings.material==='solid'&&!('blackRatio' in snapshot.settings),'Legacy material accepted by settings bridge');
-    return {island:true,legacySettings:true};
+    check(snapshot.settings.material==='glass'&&!('blackRatio' in snapshot.settings),'Glass setting did not persist');
+    window.QVUITest.setSnapshot({...snapshot,ui:{expanded:true,pinned:true}});
+    const reduced = matchMedia('(prefers-reduced-transparency: reduce)').matches || matchMedia('(forced-colors: active)').matches;
+    const ready=()=>document.querySelector('.app.material-glass .expanded .island-shell')?.hasAttribute('data-liquid-glass')===!reduced;
+    for(let attempt=0;attempt<60&&!ready();attempt++) await wait(50);
+    check(ready(),'Glass material did not follow system accessibility settings: '+JSON.stringify({reduced,app:document.querySelector('.app')?.className,island:document.querySelector('.island-window')?.className,glass:document.querySelector('.island-shell')?.hasAttribute('data-liquid-glass')}));
+    const el=document.querySelector('.island-shell'),r=el.getBoundingClientRect(),s=getComputedStyle(el);
+    const native=await window.quotaView.region({x:r.x,y:r.y,width:r.width,height:r.height,topRadius:parseFloat(s.borderTopLeftRadius)||0,bottomRadius:parseFloat(s.borderBottomLeftRadius)||0});
+    check(native.supported&&native.material==='none','Glass enabled a rectangular native backdrop');
+    await window.quotaView.updateSettings({material:'solid'});
+    window.QVUITest.setSnapshot({...await window.quotaView.snapshot(),ui:{expanded:true}});await wait(120);
+    check(getComputedStyle(document.querySelector('.island-shell')).backdropFilter==='none','Solid fallback did not restore');
+    return {island:true,materialToggle:true};
   `,
   );
+  await inject(island, {...fixture,ui:{expanded:true}});
   if (capsule) {
     await inject(capsule, fixture);
     solid.capsule = await run(
       capsule,
       `
       const el=document.querySelector('.quota-capsule'),style=getComputedStyle(el);
+      check(el.tagName==='DIV'&&!el.hasAttribute('tabindex'),'Floating capsule must be read-only');
+      const before=(await window.quotaView.snapshot()).ui.expanded;el.click();await wait(100);
+      check((await window.quotaView.snapshot()).ui.expanded===before,'Floating capsule changed expansion');
       check(style.backgroundColor==='rgb(27, 27, 32)'&&style.backdropFilter==='none'&&style.opacity==='1','Capsule still uses glass');
       el.classList.add('stale');check(getComputedStyle(el).opacity==='1','Stale capsule became transparent');
       el.classList.remove('stale');return true;
@@ -400,7 +415,7 @@ module.exports = async function verifyUI({
     check(controls.length===3&&controls.every(r=>Math.abs(r.width-46)<1&&Math.abs(r.height-32)<1),'Caption control sizes');
     check(controls[2].x+controls[2].width<=innerWidth&&controls[0].y<3,'Caption controls are misplaced');
     check(!document.querySelector('.preview-tag'),'Preview annotation remains');
-    check(!text.includes('玻璃')&&!text.includes('材质')&&!document.querySelector('#glass-ratio'),'Glass settings remain');
+    check(document.querySelector('select[aria-label="窗口材质"]')&&!document.querySelector('#glass-ratio'),'Material selector missing or obsolete ratio control remains');
     const shellStyle=getComputedStyle(document.querySelector('.preview-shell')), capsuleStyle=getComputedStyle(document.querySelector('.preview-capsule .quota-capsule'));
     check(shellStyle.backgroundColor==='rgb(0, 0, 0)'&&shellStyle.backdropFilter==='none','Preview island uses glass');
     check(capsuleStyle.backgroundColor==='rgb(27, 27, 32)'&&capsuleStyle.backdropFilter==='none','Preview capsule uses glass');
@@ -469,6 +484,7 @@ module.exports = async function verifyUI({
     "await wait(150);check(!document.hidden,'Minimized window did not restore');check(!document.documentElement.classList.contains('window-maximized'),'Restore titlebar state is stale');return true;",
   );
   const native = await capture(preferences, "settings-restored");
+  const glass = await run(preferences, `const {selfTest}=await import('./glass/smoke.mjs');const result=await selfTest();await result.cleanup();delete result.cleanup;return result;`);
   if (native && native.state !== "Normal")
     throw Error("Window did not return to Normal state");
   return {
@@ -477,6 +493,7 @@ module.exports = async function verifyUI({
     motion,
     focus,
     solid,
+    glass,
     nativeMotion: motionEvidence?.motion,
     nativeBoundsCalls: frames.length,
     usage,

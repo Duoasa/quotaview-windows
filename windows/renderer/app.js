@@ -194,9 +194,7 @@ function App() {
           ? React.createElement(
               "div",
               { className: "standalone-capsule" },
-              React.createElement(QuotaCapsule, {
-                onClick: () => w("showWindow", "island"),
-              }),
+              React.createElement(QuotaCapsule, null),
             )
           : React.createElement(IslandView, null),
       t.warning &&

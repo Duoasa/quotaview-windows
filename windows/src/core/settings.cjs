@@ -4,7 +4,7 @@ const path = require("node:path");
 const DEFAULTS = Object.freeze({
   language: "system",
   theme: "dark",
-  material: "solid",
+  material: "glass",
   effect: "quantum",
   islandWidth: 680,
   showCapsule: true,
@@ -51,6 +51,7 @@ function cleanSettings(input = {}) {
   const enums = {
     language: ["system", "en", "zh"],
     theme: ["system", "light", "dark"],
+    material: ["glass", "solid"],
     effect: ["quantum"],
     codexHookScope: ["all", "compaction"],
     tokenActivityRange: ["week", "month", "threeMonths", "sixMonths"],

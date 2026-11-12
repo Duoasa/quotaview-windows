@@ -933,6 +933,16 @@ function IslandView() {
   (React.useLayoutEffect(() => {
     if (!f.current) return;
     let O = () => {
+        const shell = f.current.querySelector(".island-shell");
+        const body = shell?.querySelector(".island-body");
+        if (n && body) {
+          // Match the native window budget, including the floating capsule.
+          // Measure header/footer chrome: a fixed subtraction clipped the
+          // longer usage pages on smaller displays.
+          const budget = window.screen.availHeight - (t.settings.showCapsule ? 112 : 16);
+          const chrome = shell.getBoundingClientRect().height - body.getBoundingClientRect().height + 8;
+          body.style.maxHeight = Math.max(0, Math.min(650, budget - chrome)) + "px";
+        }
         let rt = n
             ? Math.ceil(
                 f.current.querySelector(".island-shell")?.scrollHeight || 172,
@@ -943,8 +953,11 @@ function IslandView() {
           ((D.current = ue), a("resize", { expanded: n, height: rt }));
       },
       V = new ResizeObserver(O);
-    return (V.observe(f.current), O(), () => V.disconnect());
-  }, [n, u, c, t.settings.islandWidth, t.tasks, t.quotas, t.usage]),
+    V.observe(f.current);
+    window.addEventListener("resize", O);
+    O();
+    return () => { V.disconnect(); window.removeEventListener("resize", O); };
+  }, [n, u, c, t.settings.islandWidth, t.settings.showCapsule, t.tasks, t.quotas, t.usage]),
     React.useEffect(
       () => () => {
         clearTimeout(N.current);
@@ -981,8 +994,6 @@ function IslandView() {
       className: `island-window ${n ? "expanded" : "collapsed"}`,
       style: {
         "--island-width": t.settings.islandWidth + "px",
-        "--body-max-height":
-          Math.max(160, Math.min(650, window.screen.availHeight - 190)) + "px",
       },
       onMouseEnter: () => {
         pointerInside.current = true;
