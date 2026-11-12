@@ -6,6 +6,7 @@ const fs = require("fs"),
     repo = path.dirname(root),
     out = path.join(root, "build");
   fs.mkdirSync(out, { recursive: true });
+  fs.cpSync(path.join(repo, 'windows/renderer/glass'), path.join(out, 'dist/renderer/glass'), {recursive:true});
   const nativeShim = {
     name: "dotnet-platform",
     setup(build) {

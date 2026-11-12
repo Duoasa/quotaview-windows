@@ -1,5 +1,7 @@
 # Third-party notices
 
+Glasswork rim refraction and material are adapted from https://github.com/kubai087/glasswork (retrieved 2026-11-12), copyright (c) 2026 Kubai087, MIT. Full license: dist/renderer/glass/LICENSE. Local changes support separate corner radii and QuotaView lifecycle and accessibility fallbacks. No upstream wallpapers or Apple implementation are included.
+
 QuotaView Windows is an independent port. Upstream QuotaView source and reused visual resources are copyright (c) 2026 Duoasa, distributed under the repository MIT license. See the included LICENSE. Provider names and marks identify their respective services and do not imply endorsement.
 
 Asta Sans is copyright 2024 The Asta Sans Project Authors and is distributed under the SIL Open Font License 1.1. The complete license is included in assets/fonts/AstaSans-OFL.txt and copied with the bundled assets. The font files have not been relicensed as MIT.

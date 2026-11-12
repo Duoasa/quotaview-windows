@@ -83,7 +83,7 @@ function runApplication() {
   const { SettingsStore, cleanSettings } = require("./core/settings.cjs");
   const { DismissedTasks } = require("./core/task-history.cjs");
   const { selectRelease } = require("./core/updates.cjs");
-  const { roundedRegion } = require("./core/window-material.cjs");
+  const { roundedRegion, materialFor } = require("./core/window-material.cjs");
   const { fileURLToPath } = require("node:url");
   const {
     ForegroundMonitor,
@@ -236,20 +236,26 @@ function runApplication() {
       if (win && !win.isDestroyed()) {
         if (win !== preferences)
           win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
-        const value = "none";
+        const value = win === preferences ? "none" : materialFor({
+          platform: process.platform, release: os.release(),
+          enabled: settings.material === "glass",
+          transparency: !nativeTheme.prefersReducedTransparency,
+          highContrast: nativeTheme.shouldUseHighContrastColors,
+          regionReady: !!win.qvRegion,
+        });
         if (
           process.platform === "win32" &&
           typeof win.setBackgroundMaterial === "function"
         ) {
           try {
-            win.setBackgroundMaterial(value);
+            if (win.qvMaterial !== value) win.setBackgroundMaterial(value);
             win.qvMaterial = value;
           } catch {
             win.qvMaterial = "none";
           }
         }
         win.setBackgroundColor(
-          // Overlay corners remain transparent; the renderer paints opaque surfaces.
+          // The region clips the native backdrop to the visible surface.
           win === preferences ? "#202020" : "#00000000",
         );
       }
