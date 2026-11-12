@@ -23,6 +23,11 @@ export async function selfTest() {
   const surface = fixture.querySelector('.preview-shell');
   const capsule = fixture.querySelector('.quota-capsule');
   const lens = () => surface.style.getPropertyValue('--glass-lens');
+  if (matchMedia('(prefers-reduced-transparency: reduce)').matches || matchMedia('(forced-colors: active)').matches) {
+    await wait(() => !surface.hasAttribute('data-liquid-glass') && getComputedStyle(surface).backdropFilter === 'none');
+    check(!lens(), 'accessibility fallback retained a lens');
+    return {accessibilityFallback:true, async cleanup() { fixture.remove(); return true; }};
+  }
   await wait(() => lens().includes('url('));
   check(getComputedStyle(surface).backdropFilter.includes('url('), 'filter missing');
   const id = lens().match(/#([^)]*)/)[1];

@@ -280,7 +280,8 @@ module.exports = async function verifyUI({
     check(snapshot.settings.material==='glass'&&!('blackRatio' in snapshot.settings),'Glass setting did not persist');
     window.QVUITest.setSnapshot({...snapshot,ui:{expanded:true}});
     await wait(120);
-    check(document.querySelector('.island-shell').hasAttribute('data-liquid-glass'),'Glass material not mounted');
+    const reduced = matchMedia('(prefers-reduced-transparency: reduce)').matches || matchMedia('(forced-colors: active)').matches;
+    check(document.querySelector('.island-shell').hasAttribute('data-liquid-glass')===!reduced,'Glass material did not follow system accessibility settings');
     await window.quotaView.updateSettings({material:'solid'});
     window.QVUITest.setSnapshot({...await window.quotaView.snapshot(),ui:{expanded:true}});await wait(120);
     check(getComputedStyle(document.querySelector('.island-shell')).backdropFilter==='none','Solid fallback did not restore');
