@@ -282,6 +282,9 @@ module.exports = async function verifyUI({
     await wait(120);
     const reduced = matchMedia('(prefers-reduced-transparency: reduce)').matches || matchMedia('(forced-colors: active)').matches;
     check(document.querySelector('.island-shell').hasAttribute('data-liquid-glass')===!reduced,'Glass material did not follow system accessibility settings');
+    const el=document.querySelector('.island-shell'),r=el.getBoundingClientRect(),s=getComputedStyle(el);
+    const native=await window.quotaView.region({x:r.x,y:r.y,width:r.width,height:r.height,topRadius:parseFloat(s.borderTopLeftRadius)||0,bottomRadius:parseFloat(s.borderBottomLeftRadius)||0});
+    check(native.supported&&native.material==='none','Glass enabled a rectangular native backdrop');
     await window.quotaView.updateSettings({material:'solid'});
     window.QVUITest.setSnapshot({...await window.quotaView.snapshot(),ui:{expanded:true}});await wait(120);
     check(getComputedStyle(document.querySelector('.island-shell')).backdropFilter==='none','Solid fallback did not restore');

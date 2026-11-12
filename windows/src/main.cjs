@@ -83,7 +83,7 @@ function runApplication() {
   const { SettingsStore, cleanSettings } = require("./core/settings.cjs");
   const { DismissedTasks } = require("./core/task-history.cjs");
   const { selectRelease } = require("./core/updates.cjs");
-  const { roundedRegion, materialFor } = require("./core/window-material.cjs");
+  const { roundedRegion } = require("./core/window-material.cjs");
   const { fileURLToPath } = require("node:url");
   const {
     ForegroundMonitor,
@@ -236,13 +236,10 @@ function runApplication() {
       if (win && !win.isDestroyed()) {
         if (win !== preferences)
           win.setAlwaysOnTop(settings.alwaysOnTop, "floating");
-        const value = win === preferences ? "none" : materialFor({
-          platform: process.platform, release: os.release(),
-          enabled: settings.material === "glass",
-          transparency: !nativeTheme.prefersReducedTransparency,
-          highContrast: nativeTheme.shouldUseHighContrastColors,
-          regionReady: !!win.qvRegion,
-        });
+        // DWM Acrylic paints the rectangular HWND outside the WebView's visual
+        // surface on this host. Keep it disabled until native clipping supports
+        // that compositor path; the renderer owns Glasswork tint and rim light.
+        const value = "none";
         if (
           process.platform === "win32" &&
           typeof win.setBackgroundMaterial === "function"
@@ -255,7 +252,7 @@ function runApplication() {
           }
         }
         win.setBackgroundColor(
-          // The region clips the native backdrop to the visible surface.
+          // Keep overlay corners transparent; do not enable a rectangular DWM backdrop.
           win === preferences ? "#202020" : "#00000000",
         );
       }

@@ -1,5 +1,5 @@
 /* Material adapted from kubai087/glasswork (MIT, see ./LICENSE).
-   Layout, corner geometry and the existing black-ratio setting stay owned by app.css. */
+   Layout and corner geometry stay owned by app.css. */
 [data-liquid-glass] {
   --qv-glass-tint: rgb(24 27 35 / 72%);
   --qv-glass-tone: 0.8;
@@ -17,7 +17,6 @@
     0 4px 14px rgb(0 0 0 / 22%);
 }
 .standalone-capsule { cursor: default; user-select: none; }
-.native-backdrop [data-liquid-glass] { --qv-glass-tint: rgb(24 27 35 / 48%); }
 /* Shell content already uses light ink in both themes. Keep its dark backing;
    independent capsules follow the theme with a stronger tint for desktop legibility. */
 .theme-light .quota-capsule[data-liquid-glass] {
@@ -35,8 +34,7 @@
 .app .preview-shell[data-liquid-glass] .preview-footer {
   color: #f4f4f7;
 }
-/* The top stays black according to the user's black-ratio control, while the
-   lower rim reveals the material. No new continuously running animation. */
+/* Keep the top dark while the lower rim reveals the material. */
 .island-shell[data-liquid-glass]::before,
 .preview-shell[data-liquid-glass]::before {
   background: linear-gradient(to bottom, #000 0%,
